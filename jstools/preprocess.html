@@ -1,0 +1,1732 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <meta charset="utf-8">
+  <title>apt xml editor </title>
+  <meta name="generator" content="editplus" />
+  <link rel="stylesheet" href="codemirror/lib/codemirror.css">
+  <link rel="stylesheet" href="codemirror/addon/fold/foldgutter.css" />
+  <link rel="stylesheet" href="codemirror/addon/hint/show-hint.css">
+  <link rel="stylesheet" href="codemirror/addon/dialog/dialog.css">
+  <link rel="stylesheet" href="codemirror/addon/search/matchesonscrollbar.css">
+  <script src="codemirror/lib/codemirror.js"></script>
+  <script src="codemirror/mode/xml/xml.js"></script>
+  <script src="codemirror/addon/fold/foldcode.js"></script>
+  <script src="codemirror/addon/fold/foldgutter.js"></script>
+  <script src="codemirror/addon/fold/xml-fold.js"></script>
+  <script src="codemirror/addon/hint/show-hint.js"></script>
+  <script src="codemirror/addon/hint/xml-hint.js"></script>
+  <script src="codemirror/addon/dialog/dialog.js"></script>
+  <script src="codemirror/addon/search/searchcursor.js"></script>
+  <script src="codemirror/addon/search/search.js"></script>
+  <script src="codemirror/addon/scroll/annotatescrollbar.js"></script>
+  <script src="codemirror/addon/search/matchesonscrollbar.js"></script>
+  <script src="codemirror/addon/search/jump-to-line.js"></script>
+<style>
+html, body {padding:0;margin:0; height:100%; overflow:hidden; box-sizing:border-box;}
+#text1 {width:500px; height:200px;}
+#button1 {color:red;}
+#fopen {display:none;}
+.CodeMirror { border: 1px solid #eee; height:100%;}
+.hidden{display:none;}
+#saving,#loading {display:none; position:fixed; top:50px; left:0; text-align:center; width:100%;}
+</style>
+<script src="js/jquery.min.js"></script>
+<script>
+const i18nstrings = {
+  'text:saving':{
+    'zh':'保存中，请不要关闭窗口',
+    'en':'Now saving, do not close the window.'
+  },
+  'text:opening':{
+    'zh':'正在打开文件',
+    'en':'Reading apt file...'
+  },
+  'menu:file':{
+    'zh':'文件',
+    'en':'File'
+  },
+  'menu:open':{
+    'zh':'打开',
+    'en':'Open'
+  },
+  'menu:save':{
+    'zh':'保存',
+    'en':'Save'
+  },
+  'menu:exit':{
+    'zh':'退出',
+    'en':'Exit'
+  },
+  'menu:edit':{
+    'zh':'编辑',
+    'en':'Edit'
+  },
+  'menu:search':{
+    'zh':'搜索',
+    'en':'Search'
+  },
+  'menu:replace':{
+    'zh':'替换',
+    'en':'Replace'
+  },
+  'menu:replaceall':{
+    'zh':'全部替换',
+    'en':'Replace all'
+  },
+  'menu:rupreview':{
+    'zh':'ru预览',
+    'en':'Preview ru files'
+  },
+  'alert:chooseaptfile':{
+    'zh':'请选择apt文件！',
+    'en':'Choose .apt file!'
+  },
+  'alert:constant255':{
+    'zh':'\n单字节常数索引超过255，建议手动优化代码，\n例如使用EAGetStringMember、EAPushWordConstant、\nEAPushString、EAPushConstant+ActionCallFunction等\n',
+    'en':'\nByte value exceed 255 and the file can not be saved, try optimizing your code,\n For example, use EAGetStringMember, EAPushWordConstant, \nEAPushString, EAPushConstant+ActionCallFunction more often.\n'
+  },
+  'alert:dupid':{
+    'zh':'存在相同id: \n',
+    'en':'\Duplicate id: \n'
+  },
+}
+const i18ndefault = 'en';
+function i18n(key,lng){
+  lng = lng||navigator.language;
+  var lng0 = lng.split('-')[0];
+  var s = i18nstrings[key];
+  return s[lng]||s[lng0]||s[i18ndefault]||('i18n:'+key);
+}
+function i18nw(key,lng){
+  document.write(i18n(key,lng));
+}
+$(function(){
+  nw.Window.get().setPosition('center');
+});
+</script>
+ </head>
+ <body>
+ <div id="saving"><script>i18nw('text:saving');</script></div>
+ <div id="loading"><script>i18nw('text:opening');</script></div>
+ <div class="hidden">
+ <input type="file" accept=".apt" id="fopen" />
+ <textarea id="text1" placeholder="paste xml code from apt2xml here"></textarea><br/>
+ <input type="button" id="button1" onclick="xmladdhint()" value="convert this to more human-readable version" /><br/><br/><br/>
+ </div>
+ <textarea id="text2" placeholder="edited xml"></textarea><br/>
+ <input type="button" class="hidden" onclick="xmlcleanhint()" value="convert this for xml2apt"/>
+  <script>
+
+    //byte + 24bit reserved
+    PlaceObjectFlags = 
+    {
+        Move : 1,
+        HasCharacter : 2,
+        HasMatrix : 4,
+        HasColorTransform : 8,
+        HasRatio : 16,
+        HasName : 32,
+        HasClipDepth : 64,
+        HasClipAction : 128
+    };
+
+    //uint
+    //24bit BE + byte keycode
+    ClipEventFlags =
+    {
+        KeyUp : 0x800000,
+        KeyDown : 0x400000,
+        MouseUp : 0x200000,
+        MouseDown : 0x100000,
+        MouseMove : 0x080000,
+        Unload : 0x040000,
+        EnterFrame : 0x020000,
+        Load : 0x010000,
+        DragOver : 0x008000,
+        RollOut : 0x004000,
+        RollOver : 0x002000,
+        ReleaseOutside : 0x001000,
+        Release : 0x000800,
+        Press : 0x000400,
+        DragOut : 0x000200,
+        Data : 0x000100,
+        Construct : 0x000004,
+        KeyPress : 0x000002,
+        Initialize : 0x000001
+    };
+
+    //byte
+    //byte  + 24bit reserved
+    ButtonRecordFlags =
+    {
+        None : 0,
+        StateUp : 1,
+        StateOver : 2,
+        StateDown : 4,
+        StateHit : 8
+    };
+
+    //byte
+    //flags:8 input:16, reserved:8
+    ButtonActionFlags =
+    {
+        IdleToOverUp : 1,
+        OverUpToIdle : 2,
+        OverUpToOverDown : 4,
+        OverDownToOverUp : 8,
+        OverDownToOutDown : 16,
+        OutDownToOverDown : 32,
+        IdleToOverDown : 64,
+        OverDownToIdle : 128
+    };
+
+
+    //ushort
+    ButtonInput =
+    {
+        MouseButton0 : 0,
+        Left : 1,
+        Right : 2,
+        Home : 3,
+        End : 4,
+        Insert : 5,
+        Delete : 6,
+        BackSpace : 8,
+        Enter : 13,
+        Unknown : 240
+    };
+
+    //this, arguments, super, root, parent, global, extern
+    // byte as numregs + 24bit BE as flags
+    FunctionPreloadFlags =
+    {
+        PreloadExtern : 0x010000,   //this seems to be added by EA
+        PreloadParent : 0x008000,
+        PreloadRoot : 0x004000,
+
+        SupressSuper : 0x002000,
+        PreloadSuper : 0x001000,
+        SupressArguments : 0x000800,
+        PreloadArguments : 0x000400,
+        SupressThis : 0x000200,
+        PreloadThis : 0x000100,
+        PreloadGlobal : 0x000001
+    };
+
+    function endian(n, bytes){
+      bytes = bytes||4;
+      var v = 0;
+      for(var i=0;i<bytes;i++){
+        var b = n&0xff;
+        v |= b<< 8*(bytes-i-1);
+        n>>=8;
+      }
+      return v;
+    }
+
+    function valuetoflags(v, e){
+      v = parseInt(v);
+      var keys = [];
+      for(var k in e){
+        if(v&e[k]) keys.push(k);
+      }
+      return keys.join('|');
+    }
+    
+    function flagstovalue(f,e){
+      f = f.split('|');
+      var v=0;
+      for(var i=0;i<f.length;i++){
+        var k = e[f[i]];
+        if(k) v|=k;
+      }
+      return v;
+    }
+
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const cp= require('child_process');
+
+  var filedir, tmpdir, exedir, apt, aptapt, aptconst, aptxml;
+  // Create an empty menubar
+  var menu = new nw.Menu({type: 'menubar'});
+
+  // Create a submenu as the 2nd level menu
+  var submenu = new nw.Menu();
+  submenu.append(new nw.MenuItem({
+    label: i18n('menu:open'),
+    click: function(){
+      $('#fopen').trigger('click');
+    },
+    key: 'o',
+    modifiers: 'ctrl',
+  }));
+  submenu.append(new nw.MenuItem({
+    label: i18n('menu:save'),
+    click: function(){
+      if(!aptapt) return;
+
+      var cursor = editor.getCursor();
+      var scroll = editor.getScrollInfo();
+      editor.setOption('readOnly', 'nocursor');
+      $('.CodeMirror').css('opacity', 0.2);
+      $('#saving').show();
+      
+      setTimeout(function(){
+        if(xmlcleanhint()){
+          fs.writeFileSync(tmpdir+aptxml, $('#text1').val(), 'utf-8');
+          cp.execFileSync(exedir+'xml2apt', [tmpdir+apt]);
+          fs.copyFileSync(tmpdir+aptapt,filedir+aptapt);
+          fs.copyFileSync(tmpdir+aptconst,filedir+aptconst);
+          loadapt();
+        }else{
+          ;//failed
+        }
+          
+        $('#saving').hide();
+        $('.CodeMirror').css('opacity', 1);
+        editor.setOption('readOnly', false);
+        editor.scrollTo(scroll.left,scroll.top);
+        editor.setCursor(cursor);
+        editor.focus();
+      },1);
+    },
+    key: 's',
+    modifiers: 'ctrl',
+  }));
+  submenu.append(new nw.MenuItem({
+    label: i18n('menu:exit'),
+    click: function(){
+      window.close();
+    },
+    key: 'F4',
+    modifiers: 'alt',
+  }));
+  var submenu2 = new nw.Menu();
+  submenu2.append(new nw.MenuItem({
+    label: i18n('menu:search'),
+    click: function(){
+      editor.execCommand('findPersistent');
+    },
+    key: 'f',
+    modifiers: 'ctrl',
+  }));
+  submenu2.append(new nw.MenuItem({
+    label: i18n('menu:replace'),
+    click: function(){
+      editor.execCommand('replace');
+    },
+    key: 'h',
+    modifiers: 'ctrl',
+  }));
+  submenu2.append(new nw.MenuItem({
+    label: i18n('menu:replaceall'),
+    click: function(){
+      editor.execCommand('replaceAll');
+    },
+    key: 'h',
+    modifiers: 'ctrl+shift',
+  }));
+
+  function loadapt(){
+    labelID=0;
+    fs.copyFileSync(filedir+aptapt,tmpdir+aptapt);
+    fs.copyFileSync(filedir+aptconst,tmpdir+aptconst);
+    cp.execFileSync(exedir+'apt2xml', [tmpdir+apt]);
+    var xmlstr = fs.readFileSync(tmpdir+aptxml,'utf-8');
+    $('#text1').val(xmlstr);
+    xmladdhint();
+  }
+
+  $('#fopen').on('change',function(){
+    var file = this.files[0];
+    var fileType = /.*\.apt/i;
+    if(!file) return;
+    if (file.name.match(fileType)) {
+        tmpdir=fs.mkdtempSync(os.tmpdir()+path.sep) + path.sep;
+        filedir=file.path.substring(0,file.path.lastIndexOf(path.sep)) + path.sep;
+        exedir = '..' + path.sep + 'cc3tools' + path.sep;
+        aptapt = file.name;
+        apt = file.name.substring(0,file.name.lastIndexOf('.'));
+        aptconst = apt+'.const';
+        aptxml = apt+'.xml';
+
+
+        editor.setOption('readOnly', 'nocursor');
+        $('.CodeMirror').css('opacity', 0.2);
+        $('#loading').show();
+        
+        setTimeout(function(){
+          loadapt();
+
+          $('#loading').hide();
+          document.title = 'apt xml editor - ' + aptapt;
+          $('.CodeMirror').css('opacity', 1);
+          editor.setOption('readOnly', false);
+          editor.focus();
+        }, 1);
+    } else {
+        alert(i18n('alert:chooseaptfile'));//'选择apt文件!'
+        console.log(file.type);
+    }
+  });
+
+  // Create and append the 1st level menu to the menubar
+  menu.append(new nw.MenuItem({
+    label: i18n('menu:file'),
+    submenu: submenu
+  }));
+  menu.append(new nw.MenuItem({
+    label: i18n('menu:edit'),
+    submenu: submenu2
+  }));
+  var rupreview;
+  menu.append(new nw.MenuItem({
+    label: i18n('menu:rupreview'),
+    click:function(){
+      if(filedir){
+        var w = 700,h=450;
+        var x = screen.width/2 - w/2;
+        var y = screen.height/2 - h/2;
+        var url = 'ru.html?folder='+filedir+'&apt='+apt;
+        if(!rupreview || rupreview.closed){
+          rupreview = window.open(url,"_blank","width="+w+",height="+h+",left="+x+",top="+y,false);
+        }else if(rupreview&&decodeURI(rupreview.location.href).indexOf(url)<0){
+          rupreview.location.href=url;
+        }
+      }
+    }
+  }));
+
+  // Assign it to `window.menu` to get the menu displayed
+  nw.Window.get().menu = menu;
+  </script>
+ <script>
+  var tags = {};
+
+  function completeAfter(cm, pred) {
+    var cur = cm.getCursor();
+    if (!pred || pred()) setTimeout(function() {
+      if (!cm.state.completionActive)
+        cm.showHint({completeSingle: false});
+    }, 100);
+    return CodeMirror.Pass;
+  }
+
+  function completeIfAfterLt(cm) {
+    return completeAfter(cm, function() {
+      var cur = cm.getCursor();
+      return cm.getRange(CodeMirror.Pos(cur.line, cur.ch - 1), cur) == "<";
+    });
+  }
+
+  function completeIfInTag(cm) {
+    return completeAfter(cm, function() {
+      var tok = cm.getTokenAt(cm.getCursor());
+      if (tok.type == "string" && (!/['"]/.test(tok.string.charAt(tok.string.length - 1)) || tok.string.length == 1)) return false;
+      var inner = CodeMirror.innerMode(cm.getMode(), tok.state).state;
+      return inner.tagName;
+    });
+  }
+  var editor = CodeMirror.fromTextArea($('#text2')[0], {
+    mode: "xml",
+    lineNumbers: true,
+    foldGutter: true,
+    indentWithTabs: true,
+    tabSize:2,
+    extraKeys: {
+      "'<'": completeAfter,
+      "'/'": completeIfAfterLt,
+      "' '": completeIfInTag,
+      "'='": completeIfInTag,
+      "Ctrl-P": "autocomplete",
+      "Ctrl-F": "findPersistent"
+    },
+    gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+    hintOptions: {schemaInfo: tags}
+
+  });
+ </script>
+  <script>
+  var 
+  ACTION_END           = 0x00,
+  ACTION_NEXTFRAME         = 0x04,
+  ACTION_PREVFRAME         = 0x05,
+  ACTION_PLAY          = 0x06,
+  ACTION_STOP          = 0x07,
+  ACTION_TOGGLEQUALITY       = 0x08,
+  ACTION_STOPSOUNDS        = 0x09,
+  ACTION_GOTOFRAME         = 0x81,
+  ACTION_GETURL          = 0x83,
+  ACTION_WAITFORFRAME      = 0x8A,
+  ACTION_SETTARGET         = 0x8B,
+  ACTION_GOTOLABEL         = 0x8C,
+  ACTION_ADD           = 0x0A,
+  ACTION_SUBTRACT        = 0x0B,
+  ACTION_MULTIPLY        = 0x0C,
+  ACTION_DIVIDE          = 0x0D,
+
+  ACTION_EQUAL           = 0x0E,
+
+  ACTION_LESSTHAN        = 0x0F,
+  ACTION_LOGICALAND        = 0x10,
+  ACTION_LOGICALOR         = 0x11,
+  ACTION_LOGICALNOT        = 0x12,
+  ACTION_STRINGEQ        = 0x13,
+  ACTION_STRINGLENGTH      = 0x14,
+  ACTION_SUBSTRING         = 0x15,
+  ACTION_POP           = 0x17,
+  ACTION_INT           = 0x18,
+  ACTION_GETVARIABLE       = 0x1C,
+  ACTION_SETVARIABLE       = 0x1D,
+  ACTION_SETTARGETEXPRESSION   = 0x20,
+  ACTION_STRINGCONCAT      = 0x21,
+  ACTION_GETPROPERTY       = 0x22,
+  ACTION_SETPROPERTY       = 0x23,
+  ACTION_DUPLICATECLIP       = 0x24,
+  ACTION_REMOVECLIP        = 0x25,
+  ACTION_TRACE           = 0x26,
+  ACTION_STARTDRAGMOVIE      = 0x27,
+  ACTION_STOPDRAGMOVIE       = 0x28,
+  ACTION_STRINGCOMPARE       = 0x29,
+  ACTION_THROW           = 0x2A,
+
+  ACTION_CASTOP          = 0x2B,
+
+  ACTION_IMPLEMENTSOP      = 0x2C,
+
+  ACTION_RANDOM          = 0x30,
+  ACTION_MBLENGTH        = 0x31,
+  ACTION_ORD           = 0x32,
+  ACTION_CHR           = 0x33,
+  ACTION_GETTIMER        = 0x34,
+  ACTION_MBSUBSTRING       = 0x35,
+  ACTION_MBORD           = 0x36,
+  ACTION_MBCHR           = 0x37,
+  ACTION_WAITFORFRAMEEXPRESSION  = 0x8D,
+  ACTION_PUSHDATA        = 0x96,
+  ACTION_BRANCHALWAYS      = 0x99,
+  ACTION_GETURL2         = 0x9A,
+  ACTION_BRANCHIFTRUE      = 0x9D,
+  ACTION_CALLFRAME         = 0x9E,
+  ACTION_GOTOEXPRESSION      = 0x9F,
+
+  ACTION_DELETE          = 0x3A,
+
+  ACTION_DELETE2         = 0x3B,
+
+  ACTION_DEFINELOCAL       = 0x3C,
+  ACTION_CALLFUNCTION      = 0x3D,
+  ACTION_RETURN          = 0x3E,
+  ACTION_MODULO          = 0x3F,
+
+  ACTION_NEW           = 0x40,
+
+  ACTION_VAR           = 0x41,
+  ACTION_INITARRAY         = 0x42,
+
+
+  ACTION_INITOBJECT        = 0x43,
+
+  ACTION_TYPEOF          = 0x44,
+
+  ACTION_TARGETPATH        = 0x45,
+
+  ACTION_ENUMERATE         = 0x46,
+
+  ACTION_NEWADD          = 0x47,
+  ACTION_NEWLESSTHAN       = 0x48,
+
+  ACTION_NEWEQUALS         = 0x49,
+
+  ACTION_TONUMBER        = 0x4A,
+
+  ACTION_TOSTRING        = 0x4B,
+
+  ACTION_DUP           = 0x4C,
+
+  ACTION_SWAP          = 0x4D,
+
+  ACTION_GETMEMBER         = 0x4E,
+
+  ACTION_SETMEMBER         = 0x4F,
+
+  ACTION_INCREMENT         = 0x50,
+
+  ACTION_DECREMENT         = 0x51,
+
+  ACTION_CALLMETHOD        = 0x52,
+
+  ACTION_NEWMETHOD         = 0x53, 
+
+  ACTION_INSTANCEOF        = 0x54,
+
+  ACTION_ENUM2           = 0x55,
+
+  ACTION_BITWISEAND        = 0x60,
+  ACTION_BITWISEOR         = 0x61,
+  ACTION_BITWISEXOR        = 0x62,
+  ACTION_SHIFTLEFT         = 0x63,
+  ACTION_SHIFTRIGHT        = 0x64,
+  ACTION_SHIFTRIGHT2       = 0x65,
+  ACTION_STRICTEQ        = 0x66,
+
+  ACTION_GREATER         = 0x67,
+
+  ACTION_STRINGGREATER       = 0x68,
+
+  ACTION_EXTENDS         = 0x69,
+
+  ACTION_CONSTANTPOOL      = 0x88,
+
+
+  ACTION_DEFINEFUNCTION2     = 0x8E,
+
+  ACTION_TRY           = 0x8F,
+  ACTION_WITH          = 0x94,
+  ACTION_DEFINEFUNCTION      = 0x9B,
+
+  ACTION_SETREGISTER       = 0x87,
+  EA_ACTION56 = 0x56,
+  EA_ACTION58 = 0x58,
+  EA_PUSHZERO = 0x59,
+  EA_PUSHONE = 0x5A,
+  EA_CALLFUNCTIONPOP = 0x5B,
+  EA_CALLFUNCTION = 0x5C,
+  EA_CALLMETHODPOP = 0x5D,
+  EA_CALLMETHOD = 0x5E,
+  EA_PUSHTHIS = 0x70,
+  EA_PUSHGLOBAL = 0x71,
+  EA_ZEROVARIABLE = 0x72,
+  EA_PUSHTRUE = 0x73,
+  EA_PUSHFALSE = 0x74,
+  EA_PUSHNULL = 0x75,
+  EA_PUSHUNDEFINED = 0x76,
+  EA_ACTION77 = 0x77,
+  EA_PUSHSTRING = 0xA1,
+  EA_PUSHCONSTANT = 0xA2,
+  EA_PUSHWORDCONSTANT = 0xA3,
+  EA_GETSTRINGVAR = 0xA4,
+  EA_GETSTRINGMEMBER = 0xA5,
+  EA_SETSTRINGVAR = 0xA6,
+  EA_SETSTRINGMEMBER = 0xA7,
+  EA_PUSHVALUEOFVAR = 0xAE,
+  EA_GETNAMEDMEMBER = 0xAF,
+  EA_CALLNAMEDFUNCTIONPOP = 0xB0,
+  EA_CALLNAMEDFUNCTION = 0xB1,
+  EA_CALLNAMEDMETHODPOP = 0xB2,
+  EA_CALLNAMEDMETHOD = 0xB3,
+  EA_PUSHFLOAT = 0xB4,
+  EA_PUSHBYTE = 0xB5,
+  EA_PUSHSHORT = 0xB6,
+  EA_PUSHLONG = 0xB7,
+  EA_BRANCHIFFALSE = 0xB8,
+  EA_PUSHREGISTER = 0xB9;
+var ActionNames =   [
+  "ActionEnd", //0x00
+  "", //0x01
+  "", //0x02
+  "", //0x03
+  "ActionNextFrame", //0x04
+  "ActionPrevFrame", //0x05
+  "ActionPlay", //0x06
+  "ActionStop", //0x07
+  "ActionToggleQuality", //0x08
+  "ActionStopSounds", //0x09
+  "ActionAdd", //0x0a
+  "ActionSubtract", //0x0b
+  "ActionMultiply", //0x0c
+  "ActionDivide", //0x0d
+  "ActionEqual", //0x0e
+  "ActionLessThan", //0x0f
+  "ActionLogicalAnd", //0x10
+  "ActionLogicalOr", //0x11
+  "ActionLogicalNot", //0x12
+  "ActionStringEq", //0x13
+  "ActionStringLength", //0x14
+  "ActionSubString", //0x15
+  "", //0x16
+  "ActionPop", //0x17
+  "ActionInt", //0x18
+  "", //0x19
+  "", //0x1a
+  "", //0x1b
+  "ActionGetVariable", //0x1c
+  "ActionSetVariable", //0x1d
+  "", //0x1e
+  "", //0x1f
+  "ActionSetTargetExpression", //0x20
+  "ActionStringConcat", //0x21
+  "ActionGetProperty", //0x22
+  "ActionSetProperty", //0x23
+  "ActionDuplicateClip", //0x24
+  "ActionRemoveClip", //0x25
+  "ActionTrace", //0x26
+  "ActionStartDrag", //0x27
+  "ActionStopDrag", //0x28
+  "ActionStringCompare", //0x29
+  "ActionThrow", //0x2a
+  "ActionCastOp", //0x2b
+  "ActionImplementsOp", //0x2c
+  "", //0x2d
+  "", //0x2e
+  "", //0x2f
+  "ActionRandom", //0x30
+  "ActionMBLength", //0x31
+  "ActionOrd", //0x32
+  "AcrionChr", //0x33
+  "ActionGetTimer", //0x34
+  "ActionMBSubString", //0x35
+  "ActionMBOrd", //0x36
+  "ActionMBChr", //0x37
+  "", //0x38
+  "", //0x39
+  "ActionDelete", //0x3a
+  "ActionDelete2", //0x3b
+  "ActionDefineLocal", //0x3c
+  "ActionCallFunction", //0x3d
+  "ActionReturn", //0x3e
+  "ActionModulo", //0x3f
+  "ActionNew", //0x40
+  "ActionVar", //0x41
+  "ActionInitArray", //0x42
+  "ActionInitObject", //0x43
+  "ActionTypeOf", //0x44
+  "ActionTargetPath", //0x45
+  "ActionEnumerate", //0x46
+  "ActionNewAdd", //0x47
+  "ActionNewLessThan", //0x48
+  "ActionNewEquals", //0x49
+  "ActionToNumber", //0x4a
+  "ActionToString", //0x4b
+  "ActionDup", //0x4c
+  "ActionSwap", //0x4d
+  "ActionGetMember", //0x4e
+  "ActionSetMember", //0x4f
+  "ActionIncrement", //0x50
+  "ActionDecrement", //0x51
+  "ActionCallMethod", //0x52
+  "ActionNewMethod", //0x53
+  "ActionInstanceOf", //0x54
+  "ActionEnum2", //0x55
+  "EAUnknownAction56", //0x56
+  "", //0x57
+  "EAUnknownAction58", //0x58
+  "EAPushZero", //0x59
+  "EAPushOne", //0x5a
+  "EACallFunctionPop", //0x5b
+  "EACallFunction", //0x5c
+  "EACAllMethodPop", //0x5d
+  "EACallMethod", //0x5e
+  "", //0x5f
+  "ActionBitwiseAnd", //0x60
+  "ActionBitwiseOr", //0x61
+  "ActionBitwiseXor", //0x62
+  "ActionShiftLeft", //0x63
+  "ActionShiftRight", //0x64
+  "ActionShiftRight2", //0x65
+  "ActionStrictEq", //0x66
+  "ActionGreater", //0x67
+  "ActionStringGreater", //0x68
+  "ActionExtends", //0x69
+  "", //0x6a
+  "", //0x6b
+  "", //0x6c
+  "", //0x6d
+  "", //0x6e
+  "", //0x6f
+  "EAPushThis", //0x70
+  "EAPushGlobal", //0x71
+  "EAZeroVariable", //0x72
+  "EAPushTrue", //0x73
+  "EAPushFalse", //0x74
+  "EAPushNull", //0x75
+  "EAPushUndefined", //0x76
+  "", //0x77
+  "", //0x78
+  "", //0x79
+  "", //0x7a
+  "", //0x7b
+  "", //0x7c
+  "", //0x7d
+  "", //0x7e
+  "", //0x7f
+  "", //0x80
+  "ActionGotoFrame", //0x81
+  "", //0x82
+  "ActionGetURL", //0x83
+  "", //0x84
+  "", //0x85
+  "", //0x86
+  "ActionSetRegister", //0x87
+  "ActionConstantPool", //0x88
+  "", //0x89
+  "ActionWaitForFrame", //0x8a
+  "ActionSetTarget", //0x8b
+  "ActionGotoLabel", //0x8c
+  "ActionWaitForFrameExpression", //0x8d
+  "ActionDefineFunction2", //0x8e
+  "ActionTry", //0x8f
+  "", //0x90
+  "", //0x91
+  "", //0x92
+  "", //0x93
+  "ActionWith", //0x94
+  "", //0x95
+  "ActionPushData", //0x96
+  "", //0x97
+  "", //0x98
+  "ActionBranchAlways", //0x99
+  "ActionGetURL2", //0x9a
+  "ActionDefineFunction", //0x9b
+  "", //0x9c
+  "ActionBranchIfTrue", //0x9d
+  "ActionCallFrame", //0x9e
+  "ActionGotoExpression", //0x9f
+  "", //0xa0
+  "EAPushString", //0xa1
+  "EAPushConstant", //0xa2
+  "EAPushWordConstant", //0xa3
+  "EAGetStringVar", //0xa4
+  "EAGetStringMember", //0xa5
+  "EASetStringVar", //0xa6
+  "EASetStringMember", //0xa7
+  "", //0xa8
+  "", //0xa9
+  "", //0xaa
+  "", //0xab
+  "", //0xac
+  "", //0xad
+  "EAPushValueOfVar", //0xae
+  "EAGetNamedMember", //0xaf
+  "EACallNamedFunctionPop", //0xb0
+  "EACallNamedFunction", //0xb1
+  "EACallNamedMethodPop", //0xb2
+  "EACallNamedMethod", //0xb3
+  "EAPushFloat", //0xb4
+  "EAPushByte", //0xb5
+  "EAPushShort", //0xb6
+  "EAPushLong", //0xb7
+  "EABranchIfFalse", //0xb8
+  "EAPushRegister" //0xb9
+];
+var ActionAligns = new Array(0xb9+1);
+ActionAligns.fill(0);
+ActionAligns[ACTION_BRANCHALWAYS]=1;
+ActionAligns[ACTION_BRANCHIFTRUE]=1;
+ActionAligns[EA_BRANCHIFFALSE]=1;
+ActionAligns[ACTION_GOTOFRAME]=1;
+ActionAligns[ACTION_SETREGISTER]=1;
+ActionAligns[ACTION_WITH]=1;
+ActionAligns[ACTION_GOTOEXPRESSION]=1;
+ActionAligns[ACTION_GETURL]=1;
+ActionAligns[ACTION_CONSTANTPOOL]=1;
+ActionAligns[ACTION_PUSHDATA]=1;
+ActionAligns[ACTION_DEFINEFUNCTION2]=1;
+ActionAligns[ACTION_DEFINEFUNCTION]=1;
+ActionAligns[EA_PUSHSTRING]=1;
+ActionAligns[EA_GETSTRINGVAR]=1;
+ActionAligns[EA_GETSTRINGMEMBER]=1;
+ActionAligns[EA_SETSTRINGVAR]=1;
+ActionAligns[EA_SETSTRINGMEMBER]=1;
+ActionAligns[ACTION_SETTARGET]=1;
+ActionAligns[ACTION_GOTOLABEL]=1;
+var ActionSizes =   [
+    1,//"ActionEnd", //0x00
+  0,//"", //0x01
+  0,//"", //0x02
+  0,//"", //0x03
+  1,//"ActionNextFrame", //0x04
+  1,//"ActionPrevFrame", //0x05
+  1,//"ActionPlay", //0x06
+  1,//"ActionStop", //0x07
+  1,//"ActionToggleQuality", //0x08
+  1,//"ActionStopSounds", //0x09
+  1,//"ActionAdd", //0x0a
+  1,//"ActionSubtract", //0x0b
+  1,//"ActionMultiply", //0x0c
+  1,//"ActionDivide", //0x0d
+  1,//"ActionEqual", //0x0e
+  1,//"ActionLessThan", //0x0f
+  1,//"ActionLogicalAnd", //0x10
+  1,//"ActionLogicalOr", //0x11
+  1,//"ActionLogicalNot", //0x12
+  1,//"ActionStringEq", //0x13
+  1,//"ActionStringLength", //0x14
+  1,//"ActionSubString", //0x15
+  0,//"", //0x16
+  1,//"ActionPop", //0x17
+  1,//"ActionInt", //0x18
+  0,//"", //0x19
+  0,//"", //0x1a
+  0,//"", //0x1b
+  1,//"ActionGetVariable", //0x1c
+  1,//"ActionSetVariable", //0x1d
+  0,//"", //0x1e
+  0,//"", //0x1f
+  1,//"ActionSetTargetExpression", //0x20
+  1,//"ActionStringConcat", //0x21
+  1,//"ActionGetProperty", //0x22
+  1,//"ActionSetProperty", //0x23
+  1,//"ActionDuplicateClip", //0x24
+  1,//"ActionRemoveClip", //0x25
+  1,//"ActionTrace", //0x26
+  1,//"ActionStartDrag", //0x27
+  1,//"ActionStopDrag", //0x28
+  1,//"ActionStringCompare", //0x29
+  1,//"ActionThrow", //0x2a
+  1,//"ActionCastOp", //0x2b
+  1,//"ActionImplementsOp", //0x2c
+  0,//"", //0x2d
+  0,//"", //0x2e
+  0,//"", //0x2f
+  1,//"ActionRandom", //0x30
+  1,//"ActionMBLength", //0x31
+  1,//"ActionOrd", //0x32
+  1,//"AcrionChr", //0x33
+  1,//"ActionGetTimer", //0x34
+  1,//"ActionMBSubString", //0x35
+  1,//"ActionMBOrd", //0x36
+  1,//"ActionMBChr", //0x37
+  0,//"", //0x38
+  0,//"", //0x39
+  1,//"ActionDelete", //0x3a
+  1,//"ActionDelete2", //0x3b
+  1,//"ActionDefineLocal", //0x3c
+  1,//"ActionCallFunction", //0x3d
+  1,//"ActionReturn", //0x3e
+  1,//"ActionModulo", //0x3f
+  1,//"ActionNew", //0x40
+  1,//"ActionVar", //0x41
+  1,//"ActionInitArray", //0x42
+  1,//"ActionInitObject", //0x43
+  1,//"ActionTypeOf", //0x44
+  1,//"ActionTargetPath", //0x45
+  1,//"ActionEnumerate", //0x46
+  1,//"ActionNewAdd", //0x47
+  1,//"ActionNewLessThan", //0x48
+  1,//"ActionNewEquals", //0x49
+  1,//"ActionToNumber", //0x4a
+  1,//"ActionToString", //0x4b
+  1,//"ActionDup", //0x4c
+  1,//"ActionSwap", //0x4d
+  1,//"ActionGetMember", //0x4e
+  1,//"ActionSetMember", //0x4f
+  1,//"ActionIncrement", //0x50
+  1,//"ActionDecrement", //0x51
+  1,//"ActionCallMethod", //0x52
+  1,//"ActionNewMethod", //0x53
+  1,//"ActionInstanceOf", //0x54
+  1,//"ActionEnum2", //0x55
+  1,//"EAUnknownAction56", //0x56
+  0,//"", //0x57
+  1,//"EAUnknownAction58", //0x58
+  1,//"EAPushZero", //0x59
+  1,//"EAPushOne", //0x5a
+  1,//"EACallFunctionPop", //0x5b
+  1,//"EACallFunction", //0x5c
+  1,//"EACAllMethodPop", //0x5d
+  1,//"EACallMethod", //0x5e
+  0,//"", //0x5f
+  1,//"ActionBitwiseAnd", //0x60
+  1,//"ActionBitwiseOr", //0x61
+  1,//"ActionBitwiseXor", //0x62
+  1,//"ActionShiftLeft", //0x63
+  1,//"ActionShiftRight", //0x64
+  1,//"ActionShiftRight2", //0x65
+  1,//"ActionStrictEq", //0x66
+  1,//"ActionGreater", //0x67
+  1,//"ActionStringGreater", //0x68
+  1,//"ActionExtends", //0x69
+  0,//"", //0x6a
+  0,//"", //0x6b
+  0,//"", //0x6c
+  0,//"", //0x6d
+  0,//"", //0x6e
+  0,//"", //0x6f
+  1,//"EAPushThis", //0x70
+  1,//"EAPushGlobal", //0x71
+  1,//"EAZeroVariable", //0x72
+  1,//"EAPushTrue", //0x73
+  1,//"EAPushFalse", //0x74
+  1,//"EAPushNull", //0x75
+  1,//"EAPushUndefined", //0x76
+  0,//"", //0x77
+  0,//"", //0x78
+  0,//"", //0x79
+  0,//"", //0x7a
+  0,//"", //0x7b
+  0,//"", //0x7c
+  0,//"", //0x7d
+  0,//"", //0x7e
+  0,//"", //0x7f
+  0,//"", //0x80
+  5,//"ActionGotoFrame", //0x81
+  0,//"", //0x82
+  9,//"ActionGetURL", //0x83
+  0,//"", //0x84
+  0,//"", //0x85
+  0,//"", //0x86
+  5,//"ActionSetRegister", //0x87
+  9,//"ActionConstantPool", //0x88
+  0,//"", //0x89
+  1,//"ActionWaitForFrame", //0x8a
+  5,//"ActionSetTarget", //0x8b
+  5,//"ActionGotoLabel", //0x8c
+  1,//"ActionWaitForFrameExpression", //0x8d
+  29,//"ActionDefineFunction2", //0x8e
+  1,//"ActionTry", //0x8f
+  0,//"", //0x90
+  0,//"", //0x91
+  0,//"", //0x92
+  0,//"", //0x93
+  5,//"ActionWith", //0x94
+  0,//"", //0x95
+  9,//"ActionPushData", //0x96
+  0,//"", //0x97
+  0,//"", //0x98
+  5,//"ActionBranchAlways", //0x99
+  1,//"ActionGetURL2", //0x9a
+  25,//"ActionDefineFunction", //0x9b
+  0,//"", //0x9c
+  5,//"ActionBranchIfTrue", //0x9d
+  1,//"ActionCallFrame", //0x9e
+  5,//"ActionGotoExpression", //0x9f
+  0,//"", //0xa0
+  5,//"EAPushString", //0xa1
+  2,//"EAPushConstant", //0xa2
+  3,//"EAPushWordConstant", //0xa3
+  5,//"EAGetStringVar", //0xa4
+  5,//"EAGetStringMember", //0xa5
+  5,//"EASetStringVar", //0xa6
+  5,//"EASetStringMember", //0xa7
+  0,//"", //0xa8
+  0,//"", //0xa9
+  0,//"", //0xaa
+  0,//"", //0xab
+  0,//"", //0xac
+  0,//"", //0xad
+  2,//"EAPushValueOfVar", //0xae
+  2,//"EAGetNamedMember", //0xaf
+  2,//"EACallNamedFunctionPop", //0xb0
+  2,//"EACallNamedFunction", //0xb1
+  2,//"EACallNamedMethodPop", //0xb2
+  2,//"EACallNamedMethod", //0xb3
+  5,//"EAPushFloat", //0xb4
+  2,//"EAPushByte", //0xb5
+  3,//"EAPushShort", //0xb6
+  5,//"EAPushLong", //0xb7
+  5,//"EABranchIfFalse", //0xb8
+  2,//"EAPushRegister" //0xb9
+];
+var actionsplitters = 'definefunction2,definefunction,constantpool,end';
+var constactionstr = '[action='+EA_PUSHCONSTANT+'],[action='+EA_CALLNAMEDFUNCTIONPOP+'],[action='+EA_CALLNAMEDFUNCTION+'],[action='+EA_CALLNAMEDMETHODPOP+'],[action='+EA_CALLNAMEDMETHOD+'],[action='+EA_PUSHVALUEOFVAR+'],[action='+EA_GETNAMEDMEMBER+'],[action='+EA_PUSHWORDCONSTANT+']';
+var input = document.getElementById('text1');
+var output = document.getElementById('text2');
+
+var xmldoc;
+var labelID = 0;
+function makelabel(){
+  return 'label' + labelID++;
+}
+function mkstr(s){
+  return '"'+encodeXML(s)+'"';
+}
+function indentstr(n){
+  var t = n[0].previousSibling;
+  if(t.nodeName=='#text'){
+    return t.textContent;
+  }
+  return '';
+}
+function encodeXML(s){
+  var a = new Array(s.length);
+  for(var i=0;i<s.length;i++){
+    var c = s[i];
+    if(c=='\r') a[i]='\\r';
+    else if(c=='\n') a[i]='\\n';
+    else a[i]=c;
+  }
+  return a.join('');
+}
+
+/*
+		case '&': sRet << "&amp;"; break;
+		case '<': sRet << "&lt;"; break;
+		case '>': sRet << "&gt;"; break;
+		case '"': sRet << "&quot;"; break;
+		case '\'': sRet << "&apos;"; break;
+
+		default:
+			if (c < 32 || c>127)
+			{
+				sRet << "&#" << (unsigned int)c << ";";
+			}
+			else
+			{
+				sRet << c;
+			}
+*/
+function actiontostring(a){
+  var action = parseInt(a.attr('action'));
+  var aname = ActionNames[action];
+  if(action==ACTION_BRANCHALWAYS||action==ACTION_BRANCHIFTRUE||action==EA_BRANCHIFFALSE)
+  {
+    return aname + ' ' + a.attr('targetlabel');
+  }else if(action==EA_PUSHCONSTANT||action==EA_CALLNAMEDFUNCTIONPOP||action==EA_CALLNAMEDFUNCTION||action==EA_CALLNAMEDMETHODPOP||action==EA_CALLNAMEDMETHOD||action==EA_PUSHVALUEOFVAR||action==EA_GETNAMEDMEMBER||action==EA_PUSHWORDCONSTANT){
+    return aname + ' ' + (a.is('[str]')?mkstr(a.attr('str')):a.attr('num'));
+  }else if(a[0].tagName=='goto'){
+    return aname + ' ' + a.attr('pos');
+  }else if(a[0].tagName=='geturl'){
+    return aname + ' ' + mkstr(a.attr('str1')) + ', ' + mkstr(a.attr('str2'));
+  }else if(a[0].tagName=='definefunction'){
+    var s1= 'function ' + a.attr('name') + '(';
+    var args = a.children();
+    args.each(function(_,v){
+      s1+=$(v).attr('name') + ', ';
+    });
+    s1+=')';
+    return s1;
+  }else if(a[0].tagName=='definefunction2'){
+    var flags = parseInt(a.attr('flags'));
+    var nregs = flags&0xff;
+    var realflags = endian((flags>>8)&0xffffff, 3);
+    var s1= 'function ' + a.attr('name') + '(flags:' + valuetoflags(realflags,FunctionPreloadFlags) + ', regs:' + nregs + ', ';
+    var args = a.children();
+    args.each(function(_,v){
+      s1+='reg'+$(v).attr('reg') +':'+ $(v).attr('name') + ', ';
+    });
+    s1+=')';
+    return s1;
+  }else if(a[0].tagName=='end'){
+    return 'end';
+  }else if(a[0].tagName=='noarg'){
+    return aname;
+  }else if(a[0].tagName=='string'){
+    return aname + ' ' + mkstr(a.attr('str'));
+  }else if(a.attr('val')!=undefined){
+    return aname + ' ' + a.attr('val');
+  }else{
+    return 'unknownaction_' + action;
+  }
+}
+function alnsize(l,aln){
+  if(l.is('end')) return 0;
+  var la=parseInt(l.attr('action'));
+  var aa = ActionAligns[la];
+  var sz=ActionSizes[la];//parseInt(l.attr('size'));
+  if(aa&&((aln+1)%4)){
+    sz+=4-(aln+1)%4;
+  }
+  return sz;
+}
+function calcaln(list){
+  var aln = 0;
+  for(var i=0;i<list.length;i++){
+    var l=list.eq(i);
+    var sz=alnsize(l,aln);
+    l.attr('aln',aln);
+    aln+=sz;
+  }
+}
+function thisaln(l){
+  return parseInt(l.attr('aln'));
+}
+function nextaln(l){
+  var aln=thisaln(l);
+  return aln+alnsize(l,aln);
+}
+function copyindent(ndest, nsrc){
+  var indent = nsrc[0].previousSibling;
+  if(indent.nodeName=='#text'){
+    var indent2 = ndest[0].previousSibling;
+    if(indent2.nodeName=='#text') indent2.remove();
+    ndest[0].before(indent.cloneNode());
+  }
+}
+function xmladdhint(){
+  xmldoc = $.parseXML(input.value);
+  
+//  $(xmldoc).find('[action]').each(function(_,v){
+//    var action=parseInt($(v).attr('action'));
+//    $(v).attr('size', ActionSizes[action]);
+//  });
+
+  //calc aligned position of each action node
+  var actioncontainers = $(xmldoc).find('initaction, buttonaction, action, clipaction');
+  actioncontainers.each(function(i,v){
+    var list = $(v).children('[action]');
+    calcaln(list);
+  });
+  // add end of function 
+  //var t1 = new Date().getTime();
+  var functions = $(xmldoc).find(actionsplitters);
+  //console.log(functions.length);
+  functions.each(function(i,v){
+    v = $(v);
+    if(v[0].tagName.indexOf('definefunction')==0){
+      var size=parseInt(v.attr('size'));
+      var headaln = thisaln(v.next());
+      var c=null;
+      var sz=0;
+      var trace = [];
+      var cur = v;
+      for(;sz<=size&&cur.length;){
+        c = cur;
+        sz= nextaln(c)-headaln;
+        trace.push([nextaln(c), headaln, sz]);
+        if(sz==size){
+          break;
+        }
+        cur=cur.next();
+        c=null;
+      }
+      //add end of function node
+      if(c){
+        var endnode = el('end');
+        endnode.insertAfter(c);
+        endnode.attr('aln', nextaln(c));
+        copyindent(endnode, c);
+      }
+      else console.log('cant find end of function', size,sz,headaln,trace, v[0]);
+    }
+  });
+  //console.log(new Date().getTime()-t1);
+  //end of add end of function
+  //resolve constants
+  var actionconsts = $(xmldoc).find(constactionstr);
+  actionconsts.each(function(i,v){
+    var val = parseInt($(v).attr('val'));
+    var c = $(v).parent().find('constantpool').children().eq(val);
+    if(c.attr('str')!=undefined){
+      $(v).attr('str',c.attr('str'));
+    }else{
+      $(v).attr('num',c.attr('num'));
+    }
+  });
+  //end of resolve constants
+  //resolve jump target
+  var gotos = $(xmldoc).find('goto');
+  //var t1 = new Date().getTime();
+  gotos.each(function(i,v){
+    v = $(v);
+    //var t2 = new Date().getTime();
+    var action = parseInt(v.attr('action'));
+    if(action==ACTION_BRANCHALWAYS||action==EA_BRANCHIFFALSE||action==ACTION_BRANCHIFTRUE){
+      var pos = parseInt(v.attr('pos'));
+      var targetlabel = v.attr('targetlabel');
+      if(!targetlabel){
+        //no jump target label, create one for the first time
+        var naln = nextaln(v);
+        var jumpaln = naln + pos;
+        var filter = '[aln='+jumpaln+']:first'
+        target = pos>=0?v.nextAll(filter):v.prevAll(filter);
+        if(target.length){
+          var label = target.attr('mylabel');
+          if(!label){
+            label=makelabel();
+            target.attr('mylabel',label);
+          }
+          v.attr('targetlabel',label);
+        }else{
+          console.log('cannot find jump target','[aln='+jumpaln+']', v[0]);
+        }
+      }else{
+        //should not happen unless you paste the wrong code in the wrong textarea
+        console.log('warning, not original xml code from apt2xml');
+      }
+    }
+    //var t3 = new Date().getTime();
+  });
+  //console.log(new Date().getTime()-t1);
+  //end of resolve jump target
+  //action to string
+  actioncontainers.each(function(i,v){
+    var astr = '';
+    var actions = $(v).children().not('constantpool');
+    var indent = [indentstr(actions.first())];
+    actions.each(function(_,a){
+      a=$(a);
+      if(a.attr('mylabel')){
+        astr += indent[0];
+        astr += a.attr('mylabel') + ':'
+      }
+      if(a[0].tagName=='end'){
+        indent.pop();
+      }
+      astr+=indent.join('');
+      astr+=actiontostring(a);
+      if(a[0].tagName.indexOf('definefunction')==0){
+        indent.push('\t');
+      }
+    });
+    astr += indentstr($(v));
+    var cdata = xmldoc.createCDATASection(astr);
+    $(v).empty().append(cdata);
+  });
+  //end of action to string
+  //resolve flags
+  var placeobjects = $(xmldoc).find('placeobject');
+  placeobjects.each(function(_,v){
+    $(v).attr('flags', valuetoflags($(v).attr('flags'), PlaceObjectFlags));
+  });
+  var buttonrecords = $(xmldoc).find('buttonrecord');
+  buttonrecords.each(function(_,v){
+    $(v).attr('flags', valuetoflags($(v).attr('flags'), ButtonRecordFlags));
+  });
+  var clipactions = $(xmldoc).find('clipaction');
+  clipactions.each(function(_,v){
+    var flags = parseInt($(v).attr('flags'));
+    var realflags = endian(flags&0xffffff,3);
+    var keycode = (flags>>24)&0xff;
+    $(v).attr('flags', valuetoflags(realflags, ClipEventFlags));
+    $(v).attr('keycode', keycode);
+  });
+  var buttonactions = $(xmldoc).find('buttonaction');
+  buttonactions.each(function(_,v){
+    var flags = parseInt($(v).attr('flags'));
+    var realflags = flags&0xff;
+    var keycode = (flags>>8)&0xffff;
+    $(v).attr('flags', valuetoflags(realflags, ButtonActionFlags));
+    $(v).attr('keycode', keycode);
+  });
+  //end of resolve flags
+  //clean
+  //$(xmldoc).find('*').removeAttr('aln').filter();
+  editor.setValue((new XMLSerializer()).serializeToString(xmldoc));
+  editor.clearHistory();
+}
+function el(t){
+  return $(xmldoc.createElement(t));
+}
+function bad(t){
+  return $(xmldoc.createElement('bad')).attr('text',t);
+}
+function stringtoaction(s){
+  s = s.trim();
+  if(!s) return null;
+  var m;
+  if(s.indexOf('function')==0&&s.indexOf('flags:')>0){
+    m = s.match(/function[\s]+([\w]*)\([\s]*(flags\:([\w\|]+)[\s]*,[\s]*regs:([\w]+))([^\)]*)\)/i);
+    if(m){
+      var a = el('definefunction2');
+      a.attr('name', m[1]);
+      var realflags = endian(flagstovalue(m[3], FunctionPreloadFlags),3);
+      var nregs = parseInt(m[4]);
+      a.attr('flags',nregs|(realflags<<8));
+      a.attr('action', ACTION_DEFINEFUNCTION2);
+      a.attr('size',0);// calculate size later
+      var args = m[5].replace(/\s/g, '');
+      if(args){
+        args = args.split(',');
+        for(var i=0;i<args.length;i++){
+          if(args[i]){
+            var am = args[i].match(/reg([0-9]+):([\w]+)/i);
+            if(am){
+              var arg = el('argument');
+              arg.attr('reg', am[1]);
+              arg.attr('name', am[2]);
+              a.append(arg);
+            }
+          }
+        }
+      }
+      return a;
+    }
+  }else if(s.indexOf('function')==0){
+    m = s.match(/function[\s]+([\w]*)\(([^\)]*)\)/i);
+    if(m){
+      var a = el('definefunction');
+      a.attr('name', m[1]);
+      a.attr('action', ACTION_DEFINEFUNCTION);
+      a.attr('size',0);// calculate size later
+      var args = m[2].replace(/\s/g, '');
+      if(args){
+        args = args.split(',');
+        for(var i=0;i<args.length;i++){
+          if(args[i]){
+            var arg = el('argument');
+            arg.attr('name', args[i]);
+            a.append(arg);
+          }
+        }
+      }
+      return a;
+    }
+  }else if(s=='end'){
+    return el('end');
+  }else if(m=s.match(/^([\w]+)[\s]*:$/)){
+    return m[1]; //return a label string
+  }else{
+    m=s.match(/([\w]+)([\s]*.*)?/i);
+    if(m){
+      var aname = m[1];
+      var aid = ActionNames.findIndex(function(ia){return ia==aname;});
+      var args = m[2];
+      if(args){
+        args = m[2].trim();
+        if(args) {
+          try{
+            args = eval('[' + args + ']');
+          }catch(ex){
+            args = [args];
+          }
+        }
+      }
+      if(aid<0){
+        console.log(s);
+      }else if(aid==ACTION_BRANCHALWAYS||aid==ACTION_BRANCHIFTRUE||aid==EA_BRANCHIFFALSE){
+        var a = el('goto');
+        a.attr('action',aid);
+        a.attr('pos', 0);//calculate this later
+        a.attr('targetlabel', args[0]);
+        return a;
+      }else if(aid==ACTION_GOTOFRAME||aid==ACTION_SETREGISTER||aid==ACTION_WITH||aid==ACTION_GOTOEXPRESSION){
+        var a = el('goto');
+        a.attr('action',aid);
+        a.attr('pos', args[0]);
+        return a;
+      }else if(aid==ACTION_GETURL){
+        var a = el('geturl');
+        a.attr('action', aid);
+        a.attr('str1', args[0]);
+        a.attr('str2', args[1]);
+        return a;
+      }else if(aid==ACTION_PUSHDATA){
+        var a = el('pushdata');
+        a.attr('action', aid);
+        for(var i=0;i<args.length;i++){
+          var arg = el('data');
+          arg.attr('value', args[i]);
+          a.append(arg);
+        }
+        return a;
+      }else if(aid==EA_PUSHSTRING||aid==EA_GETSTRINGVAR||aid==EA_GETSTRINGMEMBER||aid==EA_SETSTRINGVAR||aid==EA_SETSTRINGMEMBER||aid==ACTION_SETTARGET||aid==ACTION_GOTOLABEL){
+        var a=el('string');
+        a.attr('action', aid);
+        a.attr('str', args[0]);
+        return a;
+      }else if(aid==EA_CALLNAMEDFUNCTIONPOP||aid==EA_CALLNAMEDFUNCTION||aid==EA_CALLNAMEDMETHODPOP||aid==EA_CALLNAMEDMETHOD||aid==EA_PUSHCONSTANT||aid==EA_GETNAMEDMEMBER||aid==EA_PUSHVALUEOFVAR){
+        var a=el('byte');
+        a.attr('action',aid);
+        a.attr('val', 0);//calculate this later
+        if(typeof args[0]=='string'){
+          a.attr('str', args[0]);
+        }else{
+          a.attr('num', args[0]);
+        }
+        return a;
+      }else if(aid==EA_PUSHBYTE||aid==EA_PUSHREGISTER){
+        var a=el('byte');
+        a.attr('action',aid);
+        a.attr('val', args[0]);
+        return a;
+      }else if(aid==EA_PUSHWORDCONSTANT){
+        var a=el('short');
+        a.attr('action',aid);
+        a.attr('val', 0);//calculate this later
+        if(typeof args[0]=='string'){
+          a.attr('str', args[0]);
+        }else{
+          a.attr('num', args[0]);
+        }
+        return a;
+      }else if(aid==EA_PUSHSHORT){
+        var a=el('short');
+        a.attr('action',aid);
+        a.attr('val', args[0]);
+        return a;
+      }else if(aid==EA_PUSHFLOAT){
+        var a=el('float');
+        a.attr('action',aid);
+        a.attr('val', args[0]);
+        return a;
+      }else if(aid==EA_PUSHLONG){
+        var a=el('long');
+        a.attr('action',aid);
+        a.attr('val', args[0]);
+        return a;
+      }else if(!args){
+        var a = el('noarg');
+        a.attr('action', aid);
+        return a;
+      }
+    }
+  }
+  return bad(s);
+}
+
+function xmlcleanhint(retry){
+  xmldoc = $.parseXML(editor.getValue());
+  var actioncontainers = $(xmldoc).find('initaction, buttonaction, action, clipaction');
+  //var t1 = new Date().getTime();
+  //translate string to actions
+  var lastlabel = '';
+  actioncontainers.each(function(i,v){
+    v=$(v);
+    var text = v.text();
+    if(retry) {
+      //attemp to use PushWordConstant instead
+      // try this if constant index exceed 255
+      text = text.replace(/EAPushConstant\s+\"/ig,'EAPushString "').replace(/EAPushWordConstant\s+\"/ig,'EAPushString "').replace(/EAGetNamedMember/ig,'EAGetStringMember');
+    }
+    text = text.split(/[\r\n]+/);
+    v.empty();
+    var aa = [];
+    for(var i=0;i<text.length;i++){
+      var action=stringtoaction(text[i]);
+      if(typeof action=='string'){
+        lastlabel = action;
+      }else if(action){
+        if(lastlabel){
+          action.attr('mylabel', lastlabel);
+          lastlabel = '';
+        }
+        aa.push(action);
+      }
+    }
+    v.append(aa);
+  });
+  //end of string to actions
+  //var t2 = new Date().getTime()-t1;
+
+  //repopulate constants
+  var dbg=0;
+  var sortf = function(a,b){
+    //return ActionSizes[a.getAttribute('action')]>ActionSizes[b.getAttribute('action')]?1:-1;
+    return a.tagName>b.tagName?1:-1; //byte and short
+  };
+  var actionconstants = $(xmldoc).find(constactionstr);
+  actionconstants.sort(sortf);
+  var constmap = {str:{},num:{}};
+  actionconstants.each(function(i,v){
+    if($(v).is('[str]')){
+      constmap.str[$(v).attr('str')]=1;
+    }else if($(v).is('[num]')){
+      constmap.num[$(v).attr('num')]=1;
+    }else{
+      console.log('possibly bad constant ', v);
+    }
+  });
+  var i=0;
+  var consttable = [];
+  for(var k in constmap.str){
+    constmap.str[k] = i;
+    consttable[i++] = k;
+  }
+  for(var k in constmap.num){
+    constmap.num[k] = i;
+    consttable[i++] = parseInt(k);
+  }
+  var err = false;
+  actioncontainers.each(function(i,v){
+    var localstr = {};
+    var localnum = {}
+    var localconst = [];
+    var ci = 0;
+    var myactions = $(v).find(constactionstr).sort(sortf);
+    myactions.each(function (j,a){
+      a = $(a);
+      var li,k;
+      if(a.is('[str]')){
+        k = a.attr('str');
+        if(localstr[k]==undefined){
+          localstr[k]=li=ci;
+          localconst[ci++]=k; 
+        }else{
+          li=localstr[k];
+        }
+        a.attr('val', li);
+      }else if(a.is('[num]')){
+        k = a.attr('num');
+        if(localnum[k]==undefined){
+          localnum[k]=li=ci;
+          localconst[ci++]=parseInt(k); 
+        }else{
+          li=localnum[k];
+        }
+        a.attr('val', li);
+      }
+      if(li>255 && !a.is('short')){
+        //console.log('warning, constant index > 255', a[0]);
+        if(!err&&retry) alert(a[0].outerHTML + i18n('alert:constant255') );
+        err = true;
+      }
+    });
+    if(localconst.length){
+      var ct = el('constantpool');
+      ct.attr('action', ACTION_CONSTANTPOOL);
+      for(var x=0;x<localconst.length;x++){
+        var cc = el('constant');
+        if(typeof localconst[x]=='string'){
+          cc.attr('val',constmap.str[localconst[x]]);
+          cc.attr('str', localconst[x]);
+        }else{
+          cc.attr('val',constmap.num[localconst[x]]);
+          cc.attr('num', localconst[x]);
+        }
+        ct.append(cc);
+      }
+      $(v).prepend(ct);
+    }
+  });
+  if(err) return retry?false:xmlcleanhint(true);
+  var cf = fs.openSync(tmpdir+aptconst, 'w');
+  var constbuf = Buffer.alloc(0x20);
+  constbuf.asciiWrite('Apt constant file\x1A\0\0');
+  constbuf.writeUInt32LE(111, 0x14);//just any value, will modify it later anyway
+  constbuf.writeUInt32LE(consttable.length, 0x18);
+  constbuf.writeUInt32LE(0x20, 0x1c);
+  fs.writeSync(cf, constbuf, 0, 0x20);
+  var tmpbuf = Buffer.alloc(8);
+  var strbuf = Buffer.alloc(512);
+  var strpos = 0x20 + 8*consttable.length;
+  for(var i=0;i<consttable.length;i++){
+    var cv = consttable[i];
+    if(typeof cv=='string'){
+      tmpbuf.writeUInt32LE(1);
+      tmpbuf.writeUInt32LE(strpos, 4);
+      strbuf.asciiWrite(cv+'\0');
+      fs.writeSync(cf, strbuf, 0, cv.length+1, strpos);
+      strpos+=cv.length+1
+      strpos=Math.ceil(strpos/4)*4;
+    }else{
+      tmpbuf.writeUInt32LE(2);
+      tmpbuf.writeUInt32LE(cv, 4);
+    }
+    fs.writeSync(cf, tmpbuf, 0, 8, 0x20 + i*8);
+  }
+  fs.closeSync(cf);
+  //end of repopulate constants
+  //resolve character references
+  var aptroot = $(xmldoc).find('aptdata');
+  $(xmldoc).find('movieclip').attr('id',0);
+  var characters = aptroot.children();
+  var hasidentical = undefined;
+  characters.sort(function(a,b){
+    var ida,idb;
+    if(isNaN(a.id)||isNaN(b.id)){
+      ida=a.id;
+      idb=b.id
+    }else{
+      ida=eval(a.id);
+      idb=eval(b.id);
+    }
+    if(ida>idb) return 1;
+    if(ida<idb) return -1;
+    console.log('warning, identical ids found:' + a.id);
+    hasidentical = [a,b];
+    return 0;
+  });
+  if(hasidentical!=undefined){
+    alert(i18n('alert:dupid') + hasidentical[0].outerHTML.substring(0, 50) + '\n' + hasidentical[1].outerHTML.substring(0, 50));
+    return false;
+  }
+  var refs = aptroot.find('[character],[font],[sprite]');
+  characters.each(function(i,v){
+    var oldid = $(v).attr('id')||$(v).attr('character');
+    var newid=i;
+    if($(v).attr('character')!=undefined){
+      $(v).attr('character',newid);
+    }
+    if($(v).attr('id')!=undefined){
+      $(v).attr('id',newid);
+    }
+    refs.filter('[character='+oldid+']').not('[filtered]').attr({'character':newid,'filtered':'1'});
+    refs.filter('[font='+oldid+']').not('[filtered]').attr({'font':newid,'filtered':'1'});
+    refs.filter('[sprite='+oldid+']').not('[filtered]').attr({'sprite':newid,'filtered':'1'});
+  });
+  //end resolve references
+  //resolve jump target
+  actioncontainers.each(function(i,v){
+    calcaln($(v).children('[action]'));
+  });
+  var gotos = $(xmldoc).find('[targetlabel][action]');
+  gotos.each(function(i,v){
+    var action = parseInt($(v).attr('action'));
+    var pos = parseInt($(v).attr('pos'));
+    var targetlabel = $(v).attr('targetlabel');
+    var list=$(v).parent().children();
+    target = list.filter('[mylabel='+targetlabel+']');
+    if(target.is('end')){
+      var pr = target.prevAll('[action]:first');
+      var alnp = parseInt(pr.attr('aln'));
+      target.attr('aln',  alnp+ alnsize(pr, alnp));
+    }
+    var nextaln = parseInt($(v).nextAll('[action]:first').attr('aln'));
+    var targetaln = parseInt($(target).attr('aln'));
+    $(v).attr('pos', targetaln-nextaln);
+  });
+  //end of resolve jump target
+  //resolve function size
+  var functions = $(xmldoc).find('definefunction,definefunction2');
+  functions.each(function(i,v){
+    var head = $(v);
+    var n = head.next();
+    var scope = 1;
+    while(n.length){
+      //there are functions inside other functions so we need to find the actual end of function
+      if(n[0].tagName.indexOf('definefunction')==0){
+        scope++;
+      }else if(n[0].tagName=='end'){
+        scope--;
+        if(!scope){
+          var endn = n.prevAll('[aln]:first');
+          var alnend = parseInt(endn.attr('aln'));
+          alnend += alnsize(endn, alnend);
+          var alnbegin = parseInt($(v).attr('aln'));
+          alnbegin += alnsize($(v), alnbegin);
+          $(v).attr('size', alnend-alnbegin);
+          return;
+        }
+      }
+      n=n.next();
+    }
+    console.log('end of function not found', v);
+  });
+  //end of resolve function size
+  //resolve frames
+  $(xmldoc).find('frames').each(function(i,v){
+    $(v).children('frame').each(function(j,f){
+      $(f).attr('id',j);
+      $(f).children('framelabel').attr('frame',j);
+    });
+  });
+  //end of resolve frames
+  //resolve flags
+  var placeobjects = $(xmldoc).find('placeobject');
+  placeobjects.each(function(_,v){
+    $(v).attr('flags', flagstovalue($(v).attr('flags'), PlaceObjectFlags));
+  });
+  var buttonrecords = $(xmldoc).find('buttonrecord');
+  buttonrecords.each(function(_,v){
+    $(v).attr('flags', flagstovalue($(v).attr('flags'), ButtonRecordFlags));
+  });
+  var clipactions = $(xmldoc).find('clipaction');
+  clipactions.each(function(_,v){
+    var realflags = endian(flagstovalue($(v).attr('flags'), ClipEventFlags),3);
+    var keycode = parseInt($(v).attr('keycode'));
+    $(v).attr('flags', realflags|(keycode<<24));
+    $(v).removeAttr('keycode');
+  });
+  var buttonactions = $(xmldoc).find('buttonaction');
+  buttonactions.each(function(_,v){
+    var realflags = flagstovalue($(v).attr('flags'), ButtonActionFlags);
+    var keycode = parseInt($(v).attr('keycode'));
+    var flags = realflags | (keycode<<8);
+    $(v).attr('flags', flags);
+    $(v).removeAttr('keycode');
+  });
+  //end of resolve flags
+  //clean up
+  $(xmldoc).find('*').removeAttr('filtered mylabel targetlabel aln newid');
+  $(xmldoc).find('end,dummy').remove();
+  input.value = (new XMLSerializer()).serializeToString(xmldoc);
+  return true;
+}
+
+  </script>
+ </body>
+</html>

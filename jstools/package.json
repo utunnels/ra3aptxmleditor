@@ -1,0 +1,9 @@
+{
+  "name": "ra3aptxmleditor",
+  "main": "start.js",
+  "chromium-args": "--disable-web-security",
+  "window":{
+    "width":800,
+    "height":800
+  }
+}
