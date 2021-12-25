@@ -13,6 +13,8 @@ This is a javascript/html front-end for jonwil's apt2xml and xml2apt tools. It i
 - [https://github.com/utunnels/cc3tools_for_ra3aptxmleditor](https://github.com/utunnels/cc3tools_for_ra3aptxmleditor)
 - [https://github.com/OpenSAGE/OpenSAGE](https://github.com/OpenSAGE/OpenSAGE)
 
+-----------------------------------------------------------------
+
 ### 这是什么？
 这是javascript+html写的apt编辑器前端程序，基于jonwil的apt2xml和xml2apt。本程序专门为RA3设计，打开其他游戏的apt文件会有或多或少的问题。
 
