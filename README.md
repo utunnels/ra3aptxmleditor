@@ -1,5 +1,5 @@
 # ra3aptxmleditor
-[English](#whats-this)  [Chinese]()
+[English](#whats-this) | [中文](#%E8%BF%99%E6%98%AF%E4%BB%80%E4%B9%88)
 
 ### What's this?
 This is a javascript/html front-end for jonwil's apt2xml and xml2apt tools. It is designed specifically for Red Alert 3.
