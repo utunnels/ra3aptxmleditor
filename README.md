@@ -1,5 +1,5 @@
 # ra3aptxmleditor
-[English]()  [Chinese]()
+[English](#whats-this)  [Chinese]()
 
 ### What's this?
 This is a javascript/html front-end for jonwil's apt2xml and xml2apt tools. It is designed specifically for Red Alert 3.
