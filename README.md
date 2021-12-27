@@ -23,7 +23,7 @@ This is a javascript/html front-end for jonwil's apt2xml and xml2apt tools. It i
 1. 以zip格式下载源码并解压。
 2. MOD用的AptUI文件可以去这里下载：[https://www.moddb.com/games/cc-red-alert-3/downloads/ra3-mod-ui-source-pac](https://www.moddb.com/games/cc-red-alert-3/downloads/ra3-mod-ui-source-pack).
 3. 运行tool.cmd，然后打开你要编辑的apt文件，努力看懂它，并且修改（还没有时间写教程）。请注意自行备份文件，本程序不提供自动备份功能。
-4. [wiki](https://github.com/utunnels/ra3aptxmleditor/wiki/)还在建设中
+4. [wiki](https://github.com/utunnels/ra3aptxmleditor/wiki/)还在建设中……
 
 ### 一些有用的链接
 - [https://github.com/utunnels/cc3tools_for_ra3aptxmleditor](https://github.com/utunnels/cc3tools_for_ra3aptxmleditor)
