@@ -1029,7 +1029,7 @@ var output = document.getElementById('text2');
 var xmldoc;
 var labelID = 0;
 function makelabel(){
-  return 'label' + labelID++;
+  return 'lxbxl' + labelID++;
 }
 function mkstr(s){
   return '"'+encodeXML(s)+'"';
@@ -1363,7 +1363,7 @@ function stringtoaction(s){
     m=s.match(/([\w]+)([\s]*.*)?/i);
     if(m){
       var aname = m[1];
-      var aid = ActionNames.findIndex(function(ia){return ia==aname;});
+      var aid = ActionNames.findIndex(function(ia){return ia.match(new RegExp('^'+aname+'$','i'));});
       var args = m[2];
       if(args){
         args = m[2].trim();
