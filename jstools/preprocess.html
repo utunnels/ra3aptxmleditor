@@ -88,7 +88,11 @@ const i18nstrings = {
   },
   'alert:dupid':{
     'zh':'存在相同id: \n',
-    'en':'\Duplicate id: \n'
+    'en':'\Duplicate ids: \n'
+  },
+  'alert:duptarget':{
+    'zh':'存在重复标签: \n',
+    'en':'\Duplicate labels: \n'
   },
 }
 const i18ndefault = 'en';
@@ -249,11 +253,11 @@ $(function(){
   const path = require('path');
   const cp= require('child_process');
 
-  var filedir, tmpdir, exedir, apt, aptapt, aptconst, aptxml;
+  var filedir, tmpdir, exedir, apt, aptapt, aptdat, aptconst, aptxml, manifest;
   // Create an empty menubar
   var menu = new nw.Menu({type: 'menubar'});
 
-  // Create a submenu as the 2nd level menu
+  // Create a submenu as the 2nd level menuR
   var submenu = new nw.Menu();
   submenu.append(new nw.MenuItem({
     label: i18n('menu:open'),
@@ -275,22 +279,26 @@ $(function(){
       $('#saving').show();
       
       setTimeout(function(){
-        if(xmlcleanhint()){
-          fs.writeFileSync(tmpdir+aptxml, $('#text1').val(), 'utf-8');
-          cp.execFileSync(exedir+'xml2apt', [tmpdir+apt]);
-          fs.copyFileSync(tmpdir+aptapt,filedir+aptapt);
-          fs.copyFileSync(tmpdir+aptconst,filedir+aptconst);
-          loadapt();
-        }else{
-          ;//failed
+        try{
+          if(xmlcleanhint()){
+            fs.writeFileSync(tmpdir+aptxml, $('#text1').val(), 'utf-8');
+            cp.execFileSync(exedir+'xml2apt', [tmpdir+apt]);
+            fs.copyFileSync(tmpdir+aptapt,filedir+aptapt);
+            fs.copyFileSync(tmpdir+aptconst,filedir+aptconst);
+            loadapt();
+          }else{
+            ;//failed
+          }
+        }catch(ex){
+          alert(ex.stack||ex);
+        }finally{
+          $('#saving').hide();
+          $('.CodeMirror').css('opacity', 1);
+          editor.setOption('readOnly', false);
+          editor.scrollTo(scroll.left,scroll.top);
+          editor.setCursor(cursor);
+          editor.focus();
         }
-          
-        $('#saving').hide();
-        $('.CodeMirror').css('opacity', 1);
-        editor.setOption('readOnly', false);
-        editor.scrollTo(scroll.left,scroll.top);
-        editor.setCursor(cursor);
-        editor.focus();
       },1);
     },
     key: 's',
@@ -335,6 +343,7 @@ $(function(){
     fs.copyFileSync(filedir+aptapt,tmpdir+aptapt);
     fs.copyFileSync(filedir+aptconst,tmpdir+aptconst);
     cp.execFileSync(exedir+'apt2xml', [tmpdir+apt]);
+    manifest = $.parseXML(fs.readFileSync(filedir+aptxml,'utf-8'));
     var xmlstr = fs.readFileSync(tmpdir+aptxml,'utf-8');
     $('#text1').val(xmlstr);
     xmladdhint();
@@ -352,6 +361,7 @@ $(function(){
         apt = file.name.substring(0,file.name.lastIndexOf('.'));
         aptconst = apt+'.const';
         aptxml = apt+'.xml';
+        aptdat = apt+'.dat';
 
 
         editor.setOption('readOnly', 'nocursor');
@@ -359,13 +369,17 @@ $(function(){
         $('#loading').show();
         
         setTimeout(function(){
-          loadapt();
-
-          $('#loading').hide();
-          document.title = 'apt xml editor - ' + aptapt;
-          $('.CodeMirror').css('opacity', 1);
-          editor.setOption('readOnly', false);
-          editor.focus();
+          try {
+            loadapt();
+          }catch(ex){
+            alert(ex.stack||ex);
+          }finally{
+            $('#loading').hide();
+            document.title = 'apt xml editor - ' + aptapt;
+            $('.CodeMirror').css('opacity', 1);
+            editor.setOption('readOnly', false);
+            editor.focus();
+          }
         }, 1);
     } else {
         alert(i18n('alert:chooseaptfile'));//'选择apt文件!'
@@ -1295,6 +1309,8 @@ function xmladdhint(){
   //end of resolve flags
   //clean
   //$(xmldoc).find('*').removeAttr('aln').filter();
+  $(xmldoc).find('image').removeAttr('image');
+  $(xmldoc).find('shape').removeAttr('geometry');
   editor.setValue((new XMLSerializer()).serializeToString(xmldoc));
   editor.clearHistory();
 }
@@ -1626,13 +1642,20 @@ function xmlcleanhint(retry){
   }
   var refs = aptroot.find('[character],[font],[sprite]');
   characters.each(function(i,v){
-    var oldid = $(v).attr('id')||$(v).attr('character');
+    var $v = $(v);
+    var oldid = $v.attr('id');
     var newid=i;
-    if($(v).attr('character')!=undefined){
-      $(v).attr('character',newid);
+    if(v.tagName=='image'){
+      $v.attr('image',newid);
+    }else if(v.tagName=='shape'){
+      $v.attr('geometry',newid);
     }
-    if($(v).attr('id')!=undefined){
-      $(v).attr('id',newid);
+    if($v.attr('id')!=undefined){
+      $v.attr('id',newid);
+    }
+    if($v.attr('character')!=undefined){
+      //$v.attr('character',newid);
+      alert("Unexpected attribute character, inform the dev he needs to check the code: ", v);
     }
     refs.filter('[character='+oldid+']').not('[filtered]').attr({'character':newid,'filtered':'1'});
     refs.filter('[font='+oldid+']').not('[filtered]').attr({'font':newid,'filtered':'1'});
@@ -1644,12 +1667,17 @@ function xmlcleanhint(retry){
     calcaln($(v).children('[action]'));
   });
   var gotos = $(xmldoc).find('[targetlabel][action]');
+  var duptarget = false, dups = [];
   gotos.each(function(i,v){
     var action = parseInt($(v).attr('action'));
     var pos = parseInt($(v).attr('pos'));
     var targetlabel = $(v).attr('targetlabel');
     var list=$(v).parent().children();
     target = list.filter('[mylabel='+targetlabel+']');
+    if(target.length>1){
+      duptarget = true;
+      dups.push(targetlabel);
+    }
     if(target.is('end')){
       var pr = target.prevAll('[action]:first');
       var alnp = parseInt(pr.attr('aln'));
@@ -1659,6 +1687,10 @@ function xmlcleanhint(retry){
     var targetaln = parseInt($(target).attr('aln'));
     $(v).attr('pos', targetaln-nextaln);
   });
+  if(duptarget){
+    alert(i18n('alert:duptarget') + dups.join(','));
+    return false;
+  }
   //end of resolve jump target
   //resolve function size
   var functions = $(xmldoc).find('definefunction,definefunction2');
