@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="codemirror/addon/hint/show-hint.css">
   <link rel="stylesheet" href="codemirror/addon/dialog/dialog.css">
   <link rel="stylesheet" href="codemirror/addon/search/matchesonscrollbar.css">
+  <script src="js/jquery.min.js"></script>
+  <script src="js/jquery-ui.min.js"></script>
   <script src="codemirror/lib/codemirror.js"></script>
   <script src="codemirror/mode/xml/xml.js"></script>
   <script src="codemirror/addon/fold/foldcode.js"></script>
@@ -23,7 +25,7 @@
   <script src="codemirror/addon/search/matchesonscrollbar.js"></script>
   <script src="codemirror/addon/search/jump-to-line.js"></script>
 <style>
-html, body {padding:0;margin:0; height:100%; overflow:hidden; box-sizing:border-box;}
+html, body {padding:0;margin:0; height:100%; width:100%; overflow:hidden; box-sizing:border-box;}
 #text1 {width:500px; height:200px;}
 #button1 {color:red;}
 #fopen {display:none;}
@@ -31,7 +33,6 @@ html, body {padding:0;margin:0; height:100%; overflow:hidden; box-sizing:border-
 .hidden{display:none;}
 #saving,#loading {display:none; position:fixed; top:50px; left:0; text-align:center; width:100%;}
 </style>
-<script src="js/jquery.min.js"></script>
 <script>
 const i18nstrings = {
   'text:saving':{
@@ -73,6 +74,10 @@ const i18nstrings = {
   'menu:replaceall':{
     'zh':'全部替换',
     'en':'Replace all'
+  },
+  'menu:boxpreview':{
+    'zh':'边界预览',
+    'en':'Box preview'
   },
   'menu:rupreview':{
     'zh':'ru预览',
@@ -421,6 +426,14 @@ $(function(){
         }else if(rupreview&&decodeURI(rupreview.location.href).indexOf(url)<0){
           rupreview.location.href=url;
         }
+      }
+    }
+  }));
+  menu.append(new nw.MenuItem({
+    label: i18n('menu:boxpreview'),
+    click:function(){
+      if(filedir){
+        shapepreview(true);
       }
     }
   }));
@@ -1851,6 +1864,232 @@ function xmlcleanhint(retry){
   return true;
 }
 
+var previewcanvas, ctx, aptdoc,curnode, prex=0, prey=0;
+
+function objpreview(o){
+  var c = ctx, a = aptdoc;
+  c.save();
+  c.transform(o.attr('rotm00'),o.attr('rotm01'),o.attr('rotm10'),o.attr('rotm11'),o.attr('tx'),o.attr('ty'));
+  var ch = o.attr('character');
+  if(ch>0){
+    chr = a.find('aptdata').children().filter('[id='+ch+']');
+    if(chr.is('[right]')){
+      var l = chr.attr('left'),t=chr.attr('top'),r=chr.attr('right'),b=chr.attr('bottom');
+      c.rect(l,t,r-l,b-t);
+    }else if(chr.is('empty')){
+      c.rect(0,0,16,16);
+      c.moveTo(0,0);
+      c.lineTo(16,16);
+      c.moveTo(16,0);
+      c.lineTo(0,16);
+    }else{
+      var objs = chr.find('frames frame:eq(0)').children().filter('placeobject');
+      objs.each(function(i,v){
+        objpreview($(v));
+      });
+    }
+  }
+  c.restore();
+}
+
+function preview(){
+  ctx.save();
+  ctx.translate(prex,prey);
+  ctx.beginPath();
+  var objs = aptdoc.find('movieclip frames frame:eq(0)').children().filter('placeobject');
+  objs.each(function(i,v){
+    objpreview($(v));
+  });
+  ctx.stroke();
+  ctx.restore();
+}
+
+var prec = 0;
+function objpreviewcur(o,sl){
+  var c = ctx, a = aptdoc;
+  c.save();
+  c.transform(o.attr('rotm00'),o.attr('rotm01'),o.attr('rotm10'),o.attr('rotm11'),o.attr('tx'),o.attr('ty'));
+  var ch = o.attr('character');
+  if(ch>0){
+    chr = a.find('aptdata').children().filter('[id='+ch+']');
+    var iscur = sl||o.is(curnode)||chr.is(curnode)||curnode.has(o).length>0;
+    if(chr.is('[right]')){
+      if(iscur){
+        var l = chr.attr('left'),t=chr.attr('top'),r=chr.attr('right'),b=chr.attr('bottom');
+        c.rect(l,t,r-l,b-t);
+        prec++;
+      }
+    }else if(chr.is('empty')){
+      if(iscur){
+        c.rect(0,0,16,16);
+        c.moveTo(0,0);
+        c.lineTo(16,16);
+        c.moveTo(16,0);
+        c.lineTo(0,16);
+        prec++;
+      }
+    }else{ //sprite
+      var objs = chr.find('frames frame:eq(0)').children().filter('placeobject');
+      objs.each(function(i,v){
+        objpreviewcur($(v),iscur);
+      });
+    }
+  }
+  c.restore();
+}
+
+function previewcur(){
+  if(!curnode) return;
+  if(curnode.is('aptdata,imports,import,exports,export,movieclip'))return;
+  var cn = curnode;
+  var foundchar=false;
+  while(!cn.is(aptdoc)){
+    if(cn.is('placeobject,edittext,button,shape,empty')){
+      curnode = cn;
+      foundchar=true;
+      break;
+    }
+    cn=cn.parent();
+  }
+  if(!foundchar){
+    cn = curnode;
+    while(!cn.is(aptdoc)){
+      if(cn.is('frame')){
+        curnode = cn;
+        break;
+      }
+      cn=cn.parent();
+    }
+  }
+  if(curnode.is('frames')){
+    curnode = curnode.find('frame').first();
+  }
+
+  prec = 0;
+  ctx.save();
+  ctx.strokeStyle='red';
+  ctx.translate(prex,prey);
+  ctx.beginPath();
+  var objs = aptdoc.find('movieclip frames frame:eq(0)').children().filter('placeobject');
+  objs.each(function(i,v){
+    objpreviewcur($(v));
+  });
+  ctx.stroke();
+  ctx.restore();
+}
+
+function shapepreview(refresh){
+  aptdoc = $($.parseXML(editor.getValue()));
+  if(!previewcanvas||refresh){
+    prex=prey=0;
+    previewcanvas = previewcanvas||$('<canvas id="boxpreview" tabIndex="0" width="'+aptdoc.find('movieclip').attr('screensizex')+'" height="'+aptdoc.find('movieclip').attr('screensizey')+'" ></canvas>').css({'background':'#ddd','position':'absolute','left':'50%','top':'50%','z-index':100, 'margin-left':'-'+(aptdoc.find('movieclip').attr('screensizex')/2)+'px','margin-top':'-'+(aptdoc.find('movieclip').attr('screensizey')/2)+'px'});
+    ctx = previewcanvas[0].getContext('2d');
+    $('body').append(previewcanvas);
+    previewcanvas.draggable();
+    previewcanvas.draggable('option', 'cursor', 'none');
+  }
+  ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+  preview();
+  getcurrentnode();
+  previewcur();
+}
+
+$('body').on('wheel',function(e){
+ if($(e.target).is('#boxpreview')){
+  e = e.originalEvent||e;
+  var pc = previewcanvas;
+  var zoom = pc.width()/pc.attr('width');
+  if(e.deltaY<0) zoom+=0.25;
+  else zoom-=0.25;
+  if(zoom<0.25) zoom = 0.25;
+  else if(zoom>2) zoom=2;
+  pc.css('width', pc.attr('width')*zoom + 'px');
+  pc.css('margin', 'auto');
+  pc.css('left', (e.pageX - pc.width()/2)+'px');
+  pc.css('top', (e.pageY - pc.height()/2)+'px');
+ }
+});
+$('body').on('dblclick',function(e){
+ if($(e.target).is('#boxpreview')){
+   $(e.target).remove();
+   previewcanvas=null;
+ }
+});
+$('body').on('keydown',function(e){
+  if($('#boxpreview').is(':focus')){
+    if(e.key=='ArrowRight'){
+      prex+=10;
+    }else if(e.key=='ArrowLeft'){
+      prex+=-10;
+    }else if(e.key=='ArrowUp'){
+      prey+=-10;
+    }else if(e.key=='ArrowDown'){
+      prey+=10;
+    }
+ }
+});
+nw.Window.get().on('keypress',function(e){
+  console.log(e);
+});
+
+setInterval(function(){
+  if($('#boxpreview').length>0) shapepreview();
+},120)
+/*
+var previewshortcut1 = new nw.Shortcut({
+  key : "F1",
+  active : function() {
+    console.log("Global desktop keyboard shortcut: " + this.key + " active."); 
+  },
+  failed : function(msg) {
+    // :(, fail to register the |key| or couldn't parse the |key|.
+    console.log(msg);
+  }
+});
+
+nw.App.registerGlobalHotKey(previewshortcut1);
+*/
+
+function getcurrentnode(){
+  var src = editor.getValue().split(/[\r\n]+/g);
+  var cur = editor.getCursor();
+  var tc = 0;
+  var begin=false, endtag=false;
+  var st = [];
+  for(var i=0;i<=cur.line;i++){
+    var line = src[i];
+    for(var j=0;j<line.length;j++){
+      if(i==cur.line&&j>=cur.ch){
+        break;
+      }
+      if(line[j]=='<'){
+        if((line[j+1]>='a'&&line[j+1]<='z')||(line[j+1]>='A'&&line[j+1]<='Z')){
+          tc++;
+          begin=true;
+          st.push(tc);
+        }else if(line[j+1]=='/'){
+          endtag=true;
+        }
+      }
+      if(line[j]=='>'){
+        if(endtag){
+          endtag=false;
+          begin=false;
+          st.pop();
+        }else if(line[j-1]=='/'){
+          endtag=false;
+          begin=false;
+          st.pop();
+        }
+      }
+
+    }
+  }
+  if(st.length==0) return null;
+  aptdoc = aptdoc||$($.parseXML(editor.getValue()));
+  curnode = aptdoc.find('*').eq(st[st.length-1]-1);
+  return curnode;
+}
   </script>
  </body>
 </html>
