@@ -383,6 +383,8 @@ $(function(){
         editor.setOption('readOnly', 'nocursor');
         $('.CodeMirror').css('opacity', 0.2);
         $('#loading').show();
+        if(previewcanvas) previewcanvas.remove();
+        previewcanvas=null;
         
         setTimeout(function(){
           try {
@@ -1871,23 +1873,25 @@ function objpreview(o){
   c.save();
   c.transform(o.attr('rotm00'),o.attr('rotm01'),o.attr('rotm10'),o.attr('rotm11'),o.attr('tx'),o.attr('ty'));
   var ch = o.attr('character');
-  if(ch>0){
-    chr = a.find('aptdata').children().filter('[id='+ch+']');
-    if(chr.is('[right]')){
-      var l = chr.attr('left'),t=chr.attr('top'),r=chr.attr('right'),b=chr.attr('bottom');
-      c.rect(l,t,r-l,b-t);
-    }else if(chr.is('empty')){
-      c.rect(0,0,16,16);
-      c.moveTo(0,0);
-      c.lineTo(16,16);
-      c.moveTo(16,0);
-      c.lineTo(0,16);
-    }else{
-      var objs = chr.find('frames frame:eq(0)').children().filter('placeobject');
-      objs.each(function(i,v){
-        objpreview($(v));
-      });
-    }
+  if(ch<0){
+    //frames frame placeobject
+    ch = o.parent().parent().find('placeobject[depth='+o.attr('depth')+'][character!="-1"]').last().attr('character');
+  }
+  chr = a.find('aptdata').children().filter('[id='+ch+']');
+  if(chr.is('[right]')){
+    var l = chr.attr('left'),t=chr.attr('top'),r=chr.attr('right'),b=chr.attr('bottom');
+    c.rect(l,t,r-l,b-t);
+  }else if(chr.is('empty')){
+    c.rect(0,0,16,16);
+    c.moveTo(0,0);
+    c.lineTo(16,16);
+    c.moveTo(16,0);
+    c.lineTo(0,16);
+  }else{
+    var objs = chr.find('frames frame:eq(0)').children().filter('placeobject');
+    objs.each(function(i,v){
+      objpreview($(v));
+    });
   }
   c.restore();
 }
@@ -1895,6 +1899,10 @@ function objpreview(o){
 function preview(){
   ctx.save();
   ctx.translate(prex,prey);
+  ctx.save();
+  ctx.fillStyle='#ddf';
+  ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);
+  ctx.restore();
   ctx.beginPath();
   var objs = aptdoc.find('movieclip frames frame:eq(0)').children().filter('placeobject');
   objs.each(function(i,v){
@@ -1910,30 +1918,41 @@ function objpreviewcur(o,sl){
   c.save();
   c.transform(o.attr('rotm00'),o.attr('rotm01'),o.attr('rotm10'),o.attr('rotm11'),o.attr('tx'),o.attr('ty'));
   var ch = o.attr('character');
-  if(ch>0){
-    chr = a.find('aptdata').children().filter('[id='+ch+']');
-    var iscur = sl||o.is(curnode)||chr.is(curnode)||curnode.has(o).length>0;
-    if(chr.is('[right]')){
-      if(iscur){
-        var l = chr.attr('left'),t=chr.attr('top'),r=chr.attr('right'),b=chr.attr('bottom');
-        c.rect(l,t,r-l,b-t);
-        prec++;
-      }
-    }else if(chr.is('empty')){
-      if(iscur){
-        c.rect(0,0,16,16);
-        c.moveTo(0,0);
-        c.lineTo(16,16);
-        c.moveTo(16,0);
-        c.lineTo(0,16);
-        prec++;
-      }
-    }else{ //sprite
-      var objs = chr.find('frames frame:eq(0)').children().filter('placeobject');
-      objs.each(function(i,v){
-        objpreviewcur($(v),iscur);
-      });
+  if(ch<0){
+    //frames frame placeobject
+    ch = o.parent().parent().find('placeobject[depth='+o.attr('depth')+'][character!="-1"]').last().attr('character');
+  }
+  chr = a.find('aptdata').children().filter('[id='+ch+']');
+  var iscur = sl||o.is(curnode)||chr.is(curnode)||curnode.has(o).length>0;
+  if(chr.is('[right]')){
+    if(iscur){
+      var l = chr.attr('left'),t=chr.attr('top'),r=chr.attr('right'),b=chr.attr('bottom');
+      c.rect(l,t,r-l,b-t);
+      prec++;
     }
+  }else if(chr.is('empty')){
+    if(iscur){
+      c.rect(0,0,16,16);
+      c.moveTo(0,0);
+      c.lineTo(16,16);
+      c.moveTo(16,0);
+      c.lineTo(0,16);
+      prec++;
+    }
+  }else{ //sprite
+    var ff=-1;
+    if(chr.find('frames').has(curnode).length==0){
+      ff=0;
+    }
+    var frms = chr.find('frame');
+    frms.each(function(i,f){
+      if(ff==i||$(f).is(curnode)||$(f).has(curnode).length>0){
+        var objs = $(f).children().filter('placeobject');
+        objs.each(function(_,v){
+          objpreviewcur($(v),iscur);
+        });
+      }
+    });
   }
   c.restore();
 }
@@ -1970,12 +1989,22 @@ function previewcur(){
   ctx.strokeStyle='red';
   ctx.translate(prex,prey);
   ctx.beginPath();
-  var objs = aptdoc.find('movieclip frames frame:eq(0)').children().filter('placeobject');
-  objs.each(function(i,v){
-    objpreviewcur($(v));
+  var ff=-1;
+  if(aptdoc.find('movieclip frames').has(curnode).length==0){
+    ff=0;
+  }
+  var frms = aptdoc.find('movieclip frames frame');
+  frms.each(function(i,f){
+    if(ff==i||$(f).is(curnode)||$(f).has(curnode).length>0){
+      var objs = $(f).children().filter('placeobject');
+      objs.each(function(_,v){
+        objpreviewcur($(v));
+      });
+    }
   });
   ctx.stroke();
   ctx.restore();
+  //console.log(prec);
 }
 
 function shapepreview(refresh){
