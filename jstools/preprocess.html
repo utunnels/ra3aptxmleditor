@@ -127,8 +127,8 @@ if(CanvasRenderingContext2D.prototype.getTransform==undefined)
             t1[1] * t2[0] + t1[3] * t2[1],
             t1[0] * t2[2] + t1[2] * t2[3],
             t1[1] * t2[2] + t1[3] * t2[3],
-            t1[0] * t2[4] + t1[2] * t2[5] + t1[4],
-            t1[1] * t2[4] + t1[3] * t2[5] + t1[5]
+            t1[0] * t2[4] + t1[2] * t2[5] + Number(t1[4]),
+            t1[1] * t2[4] + t1[3] * t2[5] + Number(t1[5])
         ];
     };
 })();
@@ -1991,8 +1991,8 @@ function validobjs(frm){
         if($(o).attr('character')<0){ //update existing
           var old = objs.filter('[depth='+$(o).attr('depth')+']');
           if($(o).attr('flags').indexOf('Move')>=0){
-            old.attr('_tx', old.attr('_tx')+$(o).attr('tx'));
-            old.attr('_ty', old.attr('_ty')+$(o).attr('ty'));
+            old.attr('_tx', Number(old.attr('_tx'))+Number($(o).attr('tx')));
+            old.attr('_ty', Number(old.attr('_ty'))+Number($(o).attr('ty')));
           }
           if($(o).attr('flags').indexOf('HasMatrix')>=0){
             old.attr('_rotm00', $(o).attr('rotm00'));
@@ -2045,8 +2045,7 @@ function objpreview(o){
       var m = c.getTransform();
       c.save();
       //c.setTransform(m.a,m.b,m.c,m.d,m.e,m.f);
-      c.setTransform(1,0,0,1,m.e,m.f);
-      console.log(c.getTransform().a);
+      c.setTransform(1,m.b,m.c,1,m.e,m.f); 
       c.rect(0,0,16,16);
       c.moveTo(0,0);
       c.lineTo(16,16);
@@ -2121,7 +2120,7 @@ function objpreviewcur(o,sl){
       if(iscur){
         var m = c.getTransform();
         c.save();
-        c.setTransform(1,0,0,1,m.e,m.f);
+        c.setTransform(1,m.b,m.c,1,m.e,m.f);
         c.rect(0,0,16,16);
         c.moveTo(0,0);
         c.lineTo(16,16);
@@ -2166,7 +2165,7 @@ function previewcur(){
     if(ff==i||$(f).is(curnode)||$(f).find(curnode).length>0){
       var objs = validobjs($(f));
       objs.each(function(_,v){
-        objpreviewcur($(v));
+        objpreviewcur($(v),curnode.attr('depth')==$(v).attr('depth'));
       });
       return false;
     }
@@ -2219,12 +2218,22 @@ function getcurrentnode2(){
   return curnode;
 }
 
+var docchanged = true;
+
+editor.on('change',function(){
+  docchanged=true;
+});
+
 function shapepreview(refresh){
-  aptdoc = $($.parseXML(editor.getValue()));
+  if(!aptdoc||refresh||docchanged){
+    aptdoc = $($.parseXML(editor.getValue()));
+    docchanged=false;
+  } 
   if(!previewcanvas||refresh){
     prex=prey=0;
-    previewcanvas = previewcanvas||$('<canvas id="boxpreview" tabIndex="0" width="'+aptdoc.find('movieclip').attr('screensizex')+'" height="'+aptdoc.find('movieclip').attr('screensizey')+'" ></canvas>').css({'background':'#ddd','position':'absolute','left':'50%','top':'50%','z-index':100, 'margin-left':'-'+(aptdoc.find('movieclip').attr('screensizex')/2)+'px','margin-top':'-'+(aptdoc.find('movieclip').attr('screensizey')/2)+'px'});
+    previewcanvas = $('<canvas id="boxpreview" tabIndex="0" width="'+aptdoc.find('movieclip').attr('screensizex')+'" height="'+aptdoc.find('movieclip').attr('screensizey')+'" ></canvas>').css({'background':'#ddd','position':'absolute','left':'50%','top':'50%','z-index':100, 'margin-left':'-'+(aptdoc.find('movieclip').attr('screensizex')/2)+'px','margin-top':'-'+(aptdoc.find('movieclip').attr('screensizey')/2)+'px'});
     ctx = previewcanvas[0].getContext('2d');
+    $('#boxpreview').remove();
     $('body').append(previewcanvas);
     previewcanvas.draggable();
     previewcanvas.draggable('option', 'cursor', 'none');
@@ -2269,13 +2278,10 @@ $('body').on('keydown',function(e){
     }
  }
 });
-nw.Window.get().on('keypress',function(e){
-  console.log(e);
-});
 
 setInterval(function(){
   if($('#boxpreview').length>0) shapepreview();
-},120);
+},150);
 /*
 var previewshortcut1 = new nw.Shortcut({
   key : "F1",
