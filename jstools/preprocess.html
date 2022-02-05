@@ -34,6 +34,106 @@ html, body {padding:0;margin:0; height:100%; width:100%; overflow:hidden; box-si
 #saving,#loading {display:none; position:fixed; top:50px; left:0; text-align:center; width:100%;}
 </style>
 <script>
+/**
+ * Copyright 2012- Takeshi Arabiki
+ * License: MIT License (http://opensource.org/licenses/MIT)
+ */
+if(CanvasRenderingContext2D.prototype.getTransform==undefined)
+(function() {
+    CanvasRenderingContext2D.prototype._transform = [1, 0, 0, 1, 0, 0];
+    CanvasRenderingContext2D.prototype._transforms = [];
+
+    CanvasRenderingContext2D.prototype.getTransform = function() {
+        return new DOMMatrix(this._transform);
+    };
+
+    var restore = CanvasRenderingContext2D.prototype.restore;
+    CanvasRenderingContext2D.prototype.restore = function() {
+        this._transform = this._transforms.pop() || [1, 0, 0, 1, 0, 0];
+        restore.apply(this);
+    };
+
+    // |   |   |                            | |   |
+    // | x'|   | cos(angle)  -sin(angle)  0 | | x |
+    // |   |   |                            | |   |
+    // | y'| = | sin(angle)   cos(angle)  0 | | y |
+    // |   |   |                            | |   |
+    // | 1 |   |     0             0      1 | | 1 |
+    // |   |   |                            | |   |
+    var rotate = CanvasRenderingContext2D.prototype.rotate;
+    CanvasRenderingContext2D.prototype.rotate = function(angle) {
+        var t = [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0];
+        this._transform = multiplyTransform(this._transform, t);
+        rotate.apply(this, arguments);
+    };
+
+    var save = CanvasRenderingContext2D.prototype.save;
+    CanvasRenderingContext2D.prototype.save = function() {
+        this._transforms.push(this._transform.slice());
+        save.apply(this);
+    };
+
+    // |   |   |         | |   |
+    // | x'|   | sx 0  0 | | x |
+    // |   |   |         | |   |
+    // | y'| = | 0  sy 0 | | y |
+    // |   |   |         | |   |
+    // | 1 |   | 0  0  1 | | 1 |
+    // |   |   |         | |   |
+    var scale = CanvasRenderingContext2D.prototype.scale;
+    CanvasRenderingContext2D.prototype.scale = function(sx, sy) {
+        this._transform = multiplyTransform(this._transform, [sx, 0, 0, sy, 0, 0]);
+        scale.apply(this, arguments);
+    };
+
+    var setTransform = CanvasRenderingContext2D.prototype.setTransform;
+    CanvasRenderingContext2D.prototype.setTransform = function(a, b, c, d, e, f) {
+        this._transform = Array.prototype.slice.apply(arguments);
+        setTransform.apply(this, arguments);
+    };
+
+    // |   |   |          | |   |
+    // | x'|   | 1  0  tx | | x |
+    // |   |   |          | |   |
+    // | y'| = | 0  1  ty | | y |
+    // |   |   |          | |   |
+    // | 1 |   | 0  0  1  | | 1 |
+    // |   |   |          | |   |
+    var translate = CanvasRenderingContext2D.prototype.translate;
+    CanvasRenderingContext2D.prototype.translate = function(tx, ty) {
+        this._transform = multiplyTransform(this._transform, [1, 0, 0, 1, tx, ty]);
+        translate.apply(this, arguments);
+    };
+
+    // |   |   |         | |   |
+    // | x'|   | a  c  e | | x |
+    // |   |   |         | |   |
+    // | y'| = | b  d  f | | y |
+    // |   |   |         | |   |
+    // | 1 |   | 0  0  1 | | 1 |
+    // |   |   |         | |   |
+    var transform = CanvasRenderingContext2D.prototype.transform;
+    CanvasRenderingContext2D.prototype.transform = function(a, b, c, d, e, f) {
+        this._transform = multiplyTransform.call(this, this._transform, arguments);
+        transform.apply(this, arguments);
+    };
+
+    // ctx.transform.apply(ctx, t1)
+    // ctx.transform.apply(ctx, t2)
+    // => ctx.transform.apply(ctx, multiplyTransform(t1, t2))
+    var multiplyTransform = function(t1, t2) {
+        return [
+            t1[0] * t2[0] + t1[2] * t2[1],
+            t1[1] * t2[0] + t1[3] * t2[1],
+            t1[0] * t2[2] + t1[2] * t2[3],
+            t1[1] * t2[2] + t1[3] * t2[3],
+            t1[0] * t2[4] + t1[2] * t2[5] + t1[4],
+            t1[1] * t2[4] + t1[3] * t2[5] + t1[5]
+        ];
+    };
+})();
+</script>
+<script>
 const i18nstrings = {
   'text:saving':{
     'zh':'保存中，请不要关闭窗口',
@@ -1188,6 +1288,18 @@ function copyindent(ndest, nsrc){
 }
 function xmladdhint(){
   xmldoc = $.parseXML(input.value);
+
+  //remove duplicated exports
+  var exp = {};
+  $(xmldoc).find('export').each(function(i,v){
+    var nm = $(v).attr('name');
+    if(exp[nm]){
+      $(v).remove();
+    }else{
+      exp[nm]=true;
+    }
+  });
+  //end of remove duplicated exports
   
 //  $(xmldoc).find('[action]').each(function(_,v){
 //    var action=parseInt($(v).attr('action'));
@@ -1868,143 +1980,243 @@ function xmlcleanhint(retry){
 
 var previewcanvas, ctx, aptdoc,curnode, prex=0, prey=0;
 
+function validobjs(frm){
+  var frms = frm.parent().children(); //frames
+  var objs = $();
+  frms.each(function(i,f){
+    var oo = $(f).children();
+    oo.each(function(_,o){
+      if($(o).is('placeobject')){
+        //objs = objs.not('[depth='+$(o).attr('depth')+']');
+        if($(o).attr('character')<0){ //update existing
+          var old = objs.filter('[depth='+$(o).attr('depth')+']');
+          if($(o).attr('flags').indexOf('Move')>=0){
+            old.attr('_tx', old.attr('_tx')+$(o).attr('tx'));
+            old.attr('_ty', old.attr('_ty')+$(o).attr('ty'));
+          }
+          if($(o).attr('flags').indexOf('HasMatrix')>=0){
+            old.attr('_rotm00', $(o).attr('rotm00'));
+            old.attr('_rotm01', $(o).attr('rotm01'));
+            old.attr('_rotm10', $(o).attr('rotm10'));
+            old.attr('_rotm11', $(o).attr('rotm11'));
+          }
+          if($(o).attr('flags').indexOf('HasColorTransform')>=0){
+            old.attr('_red', $(o).attr('red'));
+            old.attr('_blue', $(o).attr('blue'));
+            old.attr('_green', $(o).attr('green'));
+            old.attr('_alpha', $(o).attr('alpha'));
+          }
+        }else{
+          objs = objs.not('[depth='+$(o).attr('depth')+']').add(o);
+          $(o).attr('_rotm00', $(o).attr('rotm00'));
+          $(o).attr('_rotm01', $(o).attr('rotm01'));
+          $(o).attr('_rotm10', $(o).attr('rotm10'));
+          $(o).attr('_rotm11', $(o).attr('rotm11'));
+          $(o).attr('_tx', $(o).attr('tx'));
+          $(o).attr('_ty', $(o).attr('ty'));
+          $(o).attr('_red', $(o).attr('red'));
+          $(o).attr('_blue', $(o).attr('blue'));
+          $(o).attr('_green', $(o).attr('green'));
+          $(o).attr('_alpha', $(o).attr('alpha'));
+        }
+      }else if($(o).is('removeobject')){
+        objs = objs.not('[depth='+$(o).attr('depth')+']');
+      }
+    });
+    if(frm.is(f)){
+      return false;
+    }
+  });
+  return objs;
+}
+
 function objpreview(o){
   var c = ctx, a = aptdoc;
   c.save();
-  c.transform(o.attr('rotm00'),o.attr('rotm01'),o.attr('rotm10'),o.attr('rotm11'),o.attr('tx'),o.attr('ty'));
+  c.transform(o.attr('_rotm00'),o.attr('_rotm01'),o.attr('_rotm10'),o.attr('_rotm11'),o.attr('_tx'),o.attr('_ty'));
   var ch = o.attr('character');
-  if(ch<0){
-    //frames frame placeobject
-    ch = o.parent().parent().find('placeobject[depth='+o.attr('depth')+'][character!="-1"]').last().attr('character');
-  }
-  chr = a.find('aptdata').children().filter('[id='+ch+']');
-  if(chr.is('[right]')){
-    var l = chr.attr('left'),t=chr.attr('top'),r=chr.attr('right'),b=chr.attr('bottom');
-    c.rect(l,t,r-l,b-t);
-  }else if(chr.is('empty')){
-    c.rect(0,0,16,16);
-    c.moveTo(0,0);
-    c.lineTo(16,16);
-    c.moveTo(16,0);
-    c.lineTo(0,16);
-  }else{
-    var objs = chr.find('frames frame:eq(0)').children().filter('placeobject');
-    objs.each(function(i,v){
-      objpreview($(v));
-    });
+  if(ch>0){
+    chr = a.find('aptdata').children().filter('[id='+ch+']');
+    if(chr.is('[right]')){
+      var l = chr.attr('left'),t=chr.attr('top'),r=chr.attr('right'),b=chr.attr('bottom');
+      c.rect(l,t,r-l,b-t);
+      prec++;
+    }else if(chr.is('empty')){
+      var m = c.getTransform();
+      c.save();
+      //c.setTransform(m.a,m.b,m.c,m.d,m.e,m.f);
+      c.setTransform(1,0,0,1,m.e,m.f);
+      console.log(c.getTransform().a);
+      c.rect(0,0,16,16);
+      c.moveTo(0,0);
+      c.lineTo(16,16);
+      c.moveTo(16,0);
+      c.lineTo(0,16);
+      c.restore();
+      prec++;
+    }else{//sprite
+      var ff=-1;
+      if(!curnode||chr.find(curnode).length==0){
+        ff=chr.find('placeobject:first').parent().attr('id')||0;
+      }
+      var frms = chr.find('frame');
+      frms.each(function(i,f){
+        if(ff==i||(curnode&&($(f).is(curnode)||$(f).find(curnode).length>0))){
+          var objs = validobjs($(f));
+          objs.each(function(_,v){
+            objpreview($(v));
+          });
+          return false;
+        }
+      });
+    }
   }
   c.restore();
 }
 
-function preview(){
+function preview(){//var dat1 = new Date().getTime();
+  prec = 0;
   ctx.save();
+  ctx.strokeStyle='black';
   ctx.translate(prex,prey);
   ctx.save();
   ctx.fillStyle='#ddf';
   ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);
   ctx.restore();
   ctx.beginPath();
-  var objs = aptdoc.find('movieclip frames frame:eq(0)').children().filter('placeobject');
-  objs.each(function(i,v){
-    objpreview($(v));
+  var ff=-1;
+  if(aptdoc.find('movieclip:first').find(curnode).length==0){
+    ff=aptdoc.find('placeobject:first').parent().attr('id')||0;
+  }
+  var frms = aptdoc.find('movieclip frames frame');
+  frms.each(function(i,f){
+    if(ff==i||$(f).is(curnode)||$(f).find(curnode).length>0){
+      var objs = validobjs($(f));
+      objs.each(function(_,v){
+        objpreview($(v));
+      });
+      return false;
+    }
   });
   ctx.stroke();
-  ctx.restore();
+  ctx.restore();//console.log(new Date().getTime()-dat1);
 }
 
 var prec = 0;
 function objpreviewcur(o,sl){
   var c = ctx, a = aptdoc;
   c.save();
-  c.transform(o.attr('rotm00'),o.attr('rotm01'),o.attr('rotm10'),o.attr('rotm11'),o.attr('tx'),o.attr('ty'));
+  c.transform(o.attr('_rotm00'),o.attr('_rotm01'),o.attr('_rotm10'),o.attr('_rotm11'),o.attr('_tx'),o.attr('_ty'));
   var ch = o.attr('character');
-  if(ch<0){
-    //frames frame placeobject
-    ch = o.parent().parent().find('placeobject[depth='+o.attr('depth')+'][character!="-1"]').last().attr('character');
-  }
-  chr = a.find('aptdata').children().filter('[id='+ch+']');
-  var iscur = sl||o.is(curnode)||chr.is(curnode)||curnode.has(o).length>0;
-  if(chr.is('[right]')){
-    if(iscur){
-      var l = chr.attr('left'),t=chr.attr('top'),r=chr.attr('right'),b=chr.attr('bottom');
-      c.rect(l,t,r-l,b-t);
-      prec++;
-    }
-  }else if(chr.is('empty')){
-    if(iscur){
-      c.rect(0,0,16,16);
-      c.moveTo(0,0);
-      c.lineTo(16,16);
-      c.moveTo(16,0);
-      c.lineTo(0,16);
-      prec++;
-    }
-  }else{ //sprite
-    var ff=-1;
-    if(chr.find('frames').has(curnode).length==0){
-      ff=0;
-    }
-    var frms = chr.find('frame');
-    frms.each(function(i,f){
-      if(ff==i||$(f).is(curnode)||$(f).has(curnode).length>0){
-        var objs = $(f).children().filter('placeobject');
-        objs.each(function(_,v){
-          objpreviewcur($(v),iscur);
-        });
+  if(ch>0){
+    chr = a.find('aptdata:first').children().filter('[id='+ch+']');
+    var iscur = sl||o.is(curnode)||chr.is(curnode)||curnode.find(o).length>0;
+    if(chr.is('[right]')){
+      if(iscur){
+        var l = chr.attr('left'),t=chr.attr('top'),r=chr.attr('right'),b=chr.attr('bottom');
+        c.rect(l,t,r-l,b-t);
+        prec++;
       }
-    });
+    }else if(chr.is('empty')){
+      if(iscur){
+        var m = c.getTransform();
+        c.save();
+        c.setTransform(1,0,0,1,m.e,m.f);
+        c.rect(0,0,16,16);
+        c.moveTo(0,0);
+        c.lineTo(16,16);
+        c.moveTo(16,0);
+        c.lineTo(0,16);
+        c.restore();
+        prec++;
+      }
+    }else{ //sprite
+      var ff=-1;
+      if(chr.find(curnode).length==0){
+        ff=chr.find('placeobject:first').parent().attr('id')||0;
+      }
+      var frms = chr.find('frame');
+      frms.each(function(i,f){
+        if(ff==i||$(f).is(curnode)||$(f).find(curnode).length>0){
+          var objs = validobjs($(f));
+          objs.each(function(_,v){
+            objpreviewcur($(v),iscur);
+          });
+          return false;
+        }
+      });
+    }
   }
   c.restore();
 }
 
 function previewcur(){
   if(!curnode) return;
-  if(curnode.is('aptdata,imports,import,exports,export,movieclip'))return;
-  var cn = curnode;
-  var foundchar=false;
-  while(!cn.is(aptdoc)){
-    if(cn.is('placeobject,edittext,button,shape,empty')){
-      curnode = cn;
-      foundchar=true;
-      break;
-    }
-    cn=cn.parent();
-  }
-  if(!foundchar){
-    cn = curnode;
-    while(!cn.is(aptdoc)){
-      if(cn.is('frame')){
-        curnode = cn;
-        break;
-      }
-      cn=cn.parent();
-    }
-  }
-  if(curnode.is('frames')){
-    curnode = curnode.find('frame').first();
-  }
-
   prec = 0;
   ctx.save();
   ctx.strokeStyle='red';
   ctx.translate(prex,prey);
   ctx.beginPath();
   var ff=-1;
-  if(aptdoc.find('movieclip frames').has(curnode).length==0){
-    ff=0;
+  if(aptdoc.find('movieclip:first').find(curnode).length==0){
+    ff=aptdoc.find('placeobject:first').parent().attr('id')||0;
   }
   var frms = aptdoc.find('movieclip frames frame');
   frms.each(function(i,f){
-    if(ff==i||$(f).is(curnode)||$(f).has(curnode).length>0){
-      var objs = $(f).children().filter('placeobject');
+    if(ff==i||$(f).is(curnode)||$(f).find(curnode).length>0){
+      var objs = validobjs($(f));
+      objs.each(function(_,v){
+        objpreviewcur($(v));
+      });
+      return false;
+    }
+  });
+  if(prec==0&&aptdoc.find('movieclip:first').find(curnode).length==0){
+    var f;
+    if(curnode.is('placeobject')){
+      f = curnode.parent();
+    }else if(curnode.is('frame')){
+      f = curnode;
+    }else if(curnode.is('frames,sprite')){
+      f = curnode.find('frame').first();
+    }
+    if(f){
+      ctx.strokeStyle='blue';
+      var objs = validobjs($(f));
       objs.each(function(_,v){
         objpreviewcur($(v));
       });
     }
-  });
+  }
   ctx.stroke();
   ctx.restore();
-  //console.log(prec);
+}
+
+function getcurrentnode2(){
+  getcurrentnode();
+  if(!curnode) return curnode=null;
+  if(curnode.is('aptdata,imports,exports,movieclip'))return curnode=null;
+  if(curnode.is('export,import')){
+    return curnode=aptdoc.find('aptdata').children().filter('[id='+curnode.attr('character')+']');
+  }
+  var cn = curnode;
+  while(cn.length&&!cn.is(aptdoc)){
+    if(cn.is('placeobject,edittext,button,shape,empty')){
+      return curnode = cn;
+    }
+    cn=cn.parent();
+  }
+  cn = curnode;
+  while(cn.length&&!cn.is(aptdoc)){
+    if(cn.is('frame')){
+      return curnode = cn;
+    }
+    cn=cn.parent();
+  }
+  if(curnode.is('frames')){
+    return curnode = curnode.find('frame').first();
+  }
+  return curnode;
 }
 
 function shapepreview(refresh){
@@ -2018,8 +2230,8 @@ function shapepreview(refresh){
     previewcanvas.draggable('option', 'cursor', 'none');
   }
   ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+  getcurrentnode2();
   preview();
-  getcurrentnode();
   previewcur();
 }
 
@@ -2063,7 +2275,7 @@ nw.Window.get().on('keypress',function(e){
 
 setInterval(function(){
   if($('#boxpreview').length>0) shapepreview();
-},120)
+},120);
 /*
 var previewshortcut1 = new nw.Shortcut({
   key : "F1",
