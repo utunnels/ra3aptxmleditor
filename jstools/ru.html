@@ -29,18 +29,15 @@ html, body {padding:0;margin:0; overflow:hidden;}
     var camera = new THREE.OrthographicCamera( window.innerWidth/-2, window.innerWidth/2, window.innerHeight/-2, window.innerHeight/2, -100, 100 );
     var orbit = new THREE.OrbitControls( camera, document.body);
     orbit.addEventListener( 'change', refresh );
-
+    this.scene = scene;
     var meshes = {}, currentmeshes;
 
-    var q = new URLSearchParams(location.search);
-    var folder = q.has('folder')?q.get('folder'):'./TacticalHUD/';
-    var apt = q.has('apt')?q.get('apt'):'TacticalHUD';
-    var xml = $.parseXML(fs.readFileSync(folder + apt + '.xml', 'utf-8'));
+    var xml = $.parseXML(opener.editor.getValue());
 
-    var rus = $(xml).find('AptGeometryData');
+    var rus = $(xml).find('shape');
     $('#rulist').empty();
     rus.each(function(_,v){
-      var id = $(v).attr('AptID');
+      var id = $(v).attr('id');
       var li = $('<li>'+id+'</li>');
       $('#rulist').append(li);
       li.on('click',function(){
@@ -49,55 +46,26 @@ html, body {padding:0;margin:0; overflow:hidden;}
       });
     });
 
-    var dat = $(xml).find('AptDatData');
-    dat = fs.readFileSync(folder + dat.attr('File'), 'utf-8');
-    dat = dat.split(/[\r\n]+/);
-    var dats = {};
-    for(var i=0;i<dat.length;i++){
-      var m;
-      if(m=dat[i].match(/([0-9]+)\-\>([0-9]+)/)){
-        dats[m[1]] = m[2];
-      }else if(m=dat[i].match(/([0-9]+)\=([0-9\s]+)/)){
-        dats[m[1]] = m[2].split(/\s+/);
-      }
-    }
-
-    function findtex(t){
-      var tx = dats[t];
-      /*
-      if(tx instanceof Array){
-        return t; //for now
-      }*/
-      return tx;
-    }
-
-    function loadtexture(f){
-      function fl(tex){tex.flipY=false; }
-      if(f.match(/\.tga$/i)){
-        return new THREE.TGALoader().load(f,fl);
-      }else if(f.match(/\.dds$/i)){
-        return new THREE.DDSLoader().load(f,fl);
-      }else{
-        return new THREE.TextureLoader().load(f,fl);
-      }
-    }
-
-    var texs = $(xml).find('Texture');
     var textures = {};
-    texs.each(function(_,v){
-      var id = $(v).attr('id');//apt_TacticalHUD_1
-      id = id.split('_');
-      id = id[id.length-1];
-      var f = folder + $(v).attr('File');
-      textures[id] = loadtexture(f); 
-    });
+    function loadtexture(f){
+      f = f.toLowerCase();
+      if(textures[f]) return textures[f];
+      function fl(tex){tex.flipY=false; }
+      var ff = opener.filedir + f;
+      if(f.match(/\.tga$/i)){
+        return textures[f] = new THREE.TGALoader().load(ff,fl);
+      }else if(f.match(/\.dds$/i)){
+        return textures[f] = new THREE.DDSLoader().load(ff,fl);
+      }else{
+        return textures[f] = new THREE.TextureLoader().load(ff,fl);
+      }
+    }
 
     function getru(index){
-      var ru = $(xml).find('[AptID='+index+']').attr('File');
-      return fs.readFileSync(folder + ru, 'utf-8');
+      return $(xml).find('shape[id='+index+'] ru').text();
     }
 
-    function previewru(which){
+    function previewru(which, pmatrix){
       if(currentmeshes){
         for(var i=0;i<currentmeshes.length;i++){
           scene.remove(currentmeshes[i]);
@@ -111,6 +79,7 @@ html, body {padding:0;margin:0; overflow:hidden;}
         var shapes = [],params = [],mats = [],matrix = [];
         var sh,pa,tw,th,m3,texdat,tri=0;
         for(var i=0;i<str.length;i++){
+          str[i] = str[i].trim();
           if(str[i].indexOf('t')==0){ //triangles
             var t = str[i].split(/\s+/)[1];
             t = t.split(':');
@@ -170,7 +139,7 @@ html, body {padding:0;margin:0; overflow:hidden;}
           }else if(str[i].indexOf('s')==0){//shape
             sh = {normal:[], position:[], uv:[]};
             shapes.push(sh);
-            var t = str[i].split(/\s+/)[1];
+            var t = str[i].substring(2).trim();
             t = t.split(':');
             params.push(pa=t);
             var m3 = new THREE.Matrix3();
@@ -178,14 +147,12 @@ html, body {padding:0;margin:0; overflow:hidden;}
             if(t[0]=='s'){ //colored triangles
               mats.push(new THREE.MeshBasicMaterial( { color: 'rgb('+t[1]+','+t[2]+','+t[3]+')' ,side: THREE.DoubleSide, opacity:t[4]/255, transparent:true} ));
             }else if(t[0]=='tc'){ //texture and color triangles
-              texdat = findtex(t[5]);
-              var tex;
-              if(texdat instanceof Array){
-                texdat = [...new Float32Array(texdat)];
-                tex = textures[t[5]];
+              var td = t[5].split(',');
+              texdat = td[1];
+              var tex = loadtexture(td[0]);
+              if(texdat){
+                texdat = [...new Float32Array(texdat.split(' '))];
                 tri = 0;
-              }else{
-                tex = textures[texdat];
               }
               mats.push(new THREE.MeshBasicMaterial( { color: 'rgb('+t[1]+','+t[2]+','+t[3]+')',side: THREE.DoubleSide ,map: tex, opacity:t[4]/255, transparent:true} ));
               tw = !tex?Infinity:tex.image.width;
