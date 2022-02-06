@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ru preview</title>
+</head>
+<body style="background:url(bg2.jpg) center center">
+<style>
+html, body {padding:0;margin:0; overflow:hidden;}
+#rulist {position:fixed;right:0;top:0;display:block;width:64px; max-height:100%; overflow-y:auto; background:rgba(255,255,255,0.9);line-height:18px; z-index:100; list-style-type:none; margin:0;padding:0;font-size:12px; }
+#rulist li {cursor:pointer;}
+#rulist li.selected {cursor:pointer; background:yellow;}
+</style>
+<ul id="rulist"></ul>
+<script src="js/jquery.min.js"></script>
+<script src="js/three.js"></script>
+<script src='js/controls/OrbitControls.js'></script>
+<script src="js/loaders/TGALoader.js"></script>
+<script src="js/loaders/DDSLoader.js"></script>
+<script>
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  function Ruview(){
+    var renderer = new THREE.WebGLRenderer({alpha:true,antialias:true});
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    document.body.appendChild( renderer.domElement );
+
+    var scene = new THREE.Scene();
+    var camera = new THREE.OrthographicCamera( window.innerWidth/-2, window.innerWidth/2, window.innerHeight/-2, window.innerHeight/2, -100, 100 );
+    var orbit = new THREE.OrbitControls( camera, document.body);
+    orbit.addEventListener( 'change', refresh );
+    this.scene = scene;
+
+    var meshes = {}, currentmeshes;
+
+    var q = new URLSearchParams(location.search);
+    var folder = q.has('folder')?q.get('folder'):'./TacticalHUD/';
+    var apt = q.has('apt')?q.get('apt'):'TacticalHUD';
+    var xml = $.parseXML(fs.readFileSync(folder + apt + '.xml', 'utf-8'));
+
+    var rus = $(xml).find('AptGeometryData');
+    $('#rulist').empty();
+    rus.each(function(_,v){
+      var id = $(v).attr('AptID');
+      var li = $('<li>'+id+'</li>');
+      $('#rulist').append(li);
+      li.on('click',function(){
+        previewru($(this).text());
+        $(this).addClass('selected').siblings().removeClass('selected');;
+      });
+    });
+
+    var dat = $(xml).find('AptDatData');
+    dat = fs.readFileSync(folder + dat.attr('File'), 'utf-8');
+    dat = dat.split(/[\r\n]+/);
+    var dats = {};
+    for(var i=0;i<dat.length;i++){
+      var m;
+      if(m=dat[i].match(/([0-9]+)\-\>([0-9]+)/)){
+        dats[m[1]] = m[2];
+      }else if(m=dat[i].match(/([0-9]+)\=([0-9\s]+)/)){
+        dats[m[1]] = m[2].split(/\s+/);
+      }
+    }
+
+    function findtex(t){
+      var tx = dats[t];
+      /*
+      if(tx instanceof Array){
+        return t; //for now
+      }*/
+      return tx;
+    }
+
+    function loadtexture(f){
+      function fl(tex){tex.flipY=false; }
+      if(f.match(/\.tga$/i)){
+        return new THREE.TGALoader().load(f,fl);
+      }else if(f.match(/\.dds$/i)){
+        return new THREE.DDSLoader().load(f,fl);
+      }else{
+        return new THREE.TextureLoader().load(f,fl);
+      }
+    }
+
+    var texs = $(xml).find('Texture');
+    var textures = {};
+    texs.each(function(_,v){
+      var id = $(v).attr('id');//apt_TacticalHUD_1
+      id = id.split('_');
+      id = id[id.length-1];
+      var f = folder + $(v).attr('File');
+      textures[id] = loadtexture(f); 
+    });
+
+    function getru(index){
+      var ru = $(xml).find('[AptID='+index+']').attr('File');
+      return fs.readFileSync(folder + ru, 'utf-8');
+    }
+
+    function previewru(which, pmatrix){
+      if(currentmeshes){
+        for(var i=0;i<currentmeshes.length;i++){
+          scene.remove(currentmeshes[i]);
+        }
+      }
+      if(!meshes[which]){
+        var str = getru(which);
+
+        var str = str.split(/[\r\n]+/);
+        //var tri = [];
+        var shapes = [],params = [],mats = [],matrix = [];
+        var sh,pa,tw,th,m3,texdat,tri=0;
+        for(var i=0;i<str.length;i++){
+          if(str[i].indexOf('t')==0){ //triangles
+            var t = str[i].split(/\s+/)[1];
+            t = t.split(':');
+            sh.position.push(t[0],t[1],0,t[2],t[3],0,t[4],t[5],0);
+            if(pa[0]=='tc'){
+              //ignore this for now, seems there's no side effect
+              if(false&&texdat instanceof Array){
+                if(tri%2==0){
+                  var v0 = new THREE.Vector2(...new Float32Array([texdat[0],texdat[1]+texdat[3]])).applyMatrix3(m3);
+                  var v1 = new THREE.Vector2(...new Float32Array([texdat[0],texdat[1]])).applyMatrix3(m3);
+                  var v2 = new THREE.Vector2(...new Float32Array([texdat[0]+texdat[2],texdat[1]])).applyMatrix3(m3);
+                  sh.uv.push(
+                    v0.x/tw,
+                    v0.y/th,
+                    v1.x/tw,
+                    v1.y/th,
+                    v2.x/tw,
+                    v2.y/th
+                  );
+                }else{
+                  var v0 = new THREE.Vector2(...new Float32Array([texdat[0]+texdat[2],texdat[1]])).applyMatrix3(m3);
+                  var v1 = new THREE.Vector2(...new Float32Array([texdat[0]+texdat[2],texdat[1]+texdat[3]])).applyMatrix3(m3);
+                  var v2 = new THREE.Vector2(...new Float32Array([texdat[0],texdat[1]+texdat[3]])).applyMatrix3(m3);
+                  sh.uv.push(
+                    v0.x/tw,
+                    v0.y/th,
+                    v1.x/tw,
+                    v1.y/th,
+                    v2.x/tw,
+                    v2.y/th
+                  );
+                }
+                tri++;
+              }else{
+                var v0 = new THREE.Vector2(...new Float32Array([t[0],t[1]])).applyMatrix3(m3);
+                var v1 = new THREE.Vector2(...new Float32Array([t[2],t[3]])).applyMatrix3(m3);
+                var v2 = new THREE.Vector2(...new Float32Array([t[4],t[5]])).applyMatrix3(m3);
+                sh.uv.push(
+                  v0.x/tw,
+                  v0.y/th,
+                  v1.x/tw,
+                  v1.y/th,
+                  v2.x/tw,
+                  v2.y/th
+                );
+              }
+            }else{
+              sh.uv.push(0,0,0,0,0,0);
+            }
+            sh.normal.push(0,0,1,0,0,1,0,0,1); 
+          }else if(str[i].indexOf('l')==0){ //line
+            var t = str[i].split(/\s+/)[1];
+            t = t.split(':');
+            sh.position.push(t[0],t[1],0,t[2],t[3],0);
+            sh.uv.push(0,0,0,0);
+            sh.normal.push(0,0,1,0,0,1);
+          }else if(str[i].indexOf('s')==0){//shape
+            sh = {normal:[], position:[], uv:[]};
+            shapes.push(sh);
+            var t = str[i].split(/\s+/)[1];
+            t = t.split(':');
+            params.push(pa=t);
+            var m3 = new THREE.Matrix3();
+            matrix.push(m3);
+            if(t[0]=='s'){ //colored triangles
+              mats.push(new THREE.MeshBasicMaterial( { color: 'rgb('+t[1]+','+t[2]+','+t[3]+')' ,side: THREE.DoubleSide, opacity:t[4]/255, transparent:true} ));
+            }else if(t[0]=='tc'){ //texture and color triangles
+              texdat = findtex(t[5]);
+              var tex;
+              if(texdat instanceof Array){
+                texdat = [...new Float32Array(texdat)];
+                tex = textures[t[5]];
+                tri = 0;
+              }else{
+                tex = textures[texdat];
+              }
+              mats.push(new THREE.MeshBasicMaterial( { color: 'rgb('+t[1]+','+t[2]+','+t[3]+')',side: THREE.DoubleSide ,map: tex, opacity:t[4]/255, transparent:true} ));
+              tw = !tex?Infinity:tex.image.width;
+              th = !tex?Infinity:tex.image.height;
+              m3.elements = [...new Float32Array([pa[6],pa[7],0,pa[8],pa[9],0,pa[10],pa[11],1])];
+            }else if(t[0]=='l'){ // colored line
+              mats.push(new THREE.LineBasicMaterial( { color: 'rgb('+t[2]+','+t[3]+','+t[4]+')' ,linewidth: t[1], opacity:t[5]/255, transparent:true} ));
+            }
+          }else if(str[i].indexOf('c')==0){ //begin
+            //ignore this for now, check s instead
+          }
+        }
+        var mes = [];
+        meshes[which] = mes;
+        for(var i=0;i<shapes.length;i++){
+          var sh = shapes[i];
+          var type = params[i][0];
+          var ma = mats[i];
+          var me;
+          if(type=='l'){
+            var ge = new THREE.BufferGeometry();
+            ge.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array(sh.position), 3 ) );
+            me = new THREE.LineSegments( ge, ma );
+          }else{
+            var ge = new THREE.BufferGeometry();
+            ge.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array(sh.position), 3 ) );
+            ge.setAttribute( 'normal', new THREE.BufferAttribute( new Float32Array(sh.normal), 3 ) );
+            ge.setAttribute( 'uv', new THREE.BufferAttribute( new Float32Array(sh.uv), 2 ) );
+            me= new THREE.Mesh(ge, ma);
+          }
+          mes.push(me);
+        }
+      }
+
+      for(var i=0;i<meshes[which].length;i++){
+        scene.add(meshes[which][i]);
+      }
+      currentmeshes = meshes[which];
+    }
+    this.previewru = previewru;
+
+    var lmat = new THREE.LineDashedMaterial( { color: 0xff0000 ,linewidth: 1, opacity:1, transparent:true} );
+    var geh = new THREE.BufferGeometry();
+    geh.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array([-204800,0,-1,204800,0,-1]), 3 ) );
+    var hline = new THREE.Line( geh, lmat );
+    scene.add(hline);
+    var gev = new THREE.BufferGeometry();
+    gev.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array([0,-204800,-1,0,204800,-1]), 3 ) );
+    var vline = new THREE.Line( gev, lmat );
+    scene.add(vline);
+    meshes['misc'] = [hline,vline];
+
+    function refresh(){
+      renderer.render( scene, camera );
+    }
+
+    function onWindowResize() {
+
+      camera.left=window.innerWidth/-2;
+      camera.top=window.innerHeight/-2;
+      camera.right=window.innerWidth/2;
+      camera.bottom=window.innerHeight/2;
+      camera.aspect = window.innerWidth/window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize( window.innerWidth, window.innerHeight );
+      renderer.render( scene, camera );
+
+    }
+    $(window).on( 'resize', onWindowResize );
+    $(window).on( 'mousedown', function(e){
+      if(e.which==2){//middle button?
+        orbit.reset();
+      }
+    });
+
+    var animate = function () {
+      if(!renderer) return;
+      requestAnimationFrame( animate );
+
+      renderer.render( scene, camera );
+    };
+    animate();
+
+
+    this.dispose = function(){
+      for(var k in textures) {
+        textures[k].dispose();textures[k]=null;
+      }
+      for(var k in meshes){
+        var mes = meshes[k];
+        for(var i=0;i<mes.length;i++){
+          mes[i].material.dispose();
+          mes[i].geometry.dispose();
+        }
+      }
+      camera=null;
+      scene=null;
+      document.body.removeChild( renderer.domElement );
+      renderer && renderer.renderLists.dispose();
+      renderer = null;
+    }; 
+  }
+  var rv = new Ruview();
+</script>
+
+<script>
+
+
+</script>
+</body>
+</html>
