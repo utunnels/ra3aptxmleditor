@@ -31,6 +31,7 @@ html, body {padding:0;margin:0; overflow:hidden;}
     orbit.addEventListener( 'change', refresh );
     this.scene = scene;
     var meshes = {}, currentmeshes;
+    var textures = {};
 
     var xml = $.parseXML(opener.editor.getValue());
 
@@ -44,9 +45,9 @@ html, body {padding:0;margin:0; overflow:hidden;}
         previewru($(this).text());
         $(this).addClass('selected').siblings().removeClass('selected');;
       });
+      cacheru(id);
     });
 
-    var textures = {};
     function loadtexture(f){
       f = f.toLowerCase();
       if(textures[f]) return textures[f];
@@ -63,6 +64,19 @@ html, body {padding:0;margin:0; overflow:hidden;}
 
     function getru(index){
       return $(xml).find('shape[id='+index+'] ru').text();
+    }
+
+    function cacheru(which){
+      var str = getru(which).split(/[\r\n]+/);
+      for(var i=0;i<str.length;i++){
+        str[i] = str[i].trim();
+        if(str[i].indexOf('s')==0){//shape
+          var t = str[i].substring(2).trim().split(':');;
+          if(t[0]=='tc'){
+            loadtexture(t[5].split(',')[0]);
+          }
+        }
+      }
     }
 
     function previewru(which, pmatrix){
@@ -172,13 +186,11 @@ html, body {padding:0;margin:0; overflow:hidden;}
           var type = params[i][0];
           var ma = mats[i];
           var me;
+          var ge = new THREE.BufferGeometry();
+          ge.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array(sh.position), 3 ) );
           if(type=='l'){
-            var ge = new THREE.BufferGeometry();
-            ge.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array(sh.position), 3 ) );
             me = new THREE.LineSegments( ge, ma );
           }else{
-            var ge = new THREE.BufferGeometry();
-            ge.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array(sh.position), 3 ) );
             ge.setAttribute( 'normal', new THREE.BufferAttribute( new Float32Array(sh.normal), 3 ) );
             ge.setAttribute( 'uv', new THREE.BufferAttribute( new Float32Array(sh.uv), 2 ) );
             me= new THREE.Mesh(ge, ma);
