@@ -1455,8 +1455,7 @@ function xmladdhint(){
     if(typeof dd=='string'){
       $(v).attr('image', $(manifest).find('Texture[id=apt_'+apt+'_'+dd+']').attr('File'));
     }else{
-      $(v).attr('image', $(manifest).find('Texture[id=apt_'+apt+'_'+id+']').attr('File'));
-      $(v).attr('extra', dd.join(' '));
+      $(v).attr('image', $(manifest).find('Texture[id=apt_'+apt+'_'+id+']').attr('File')+','+dd.join(' '));
     }
   });
   $(xmldoc).find('shape').each(function(i,v){
@@ -1466,9 +1465,9 @@ function xmladdhint(){
     for(var i=0;i<ru.length;i++){
       ru[i] = ru[i].trim();
       if(ru[i].indexOf('tc')>0){
-        var ts = ru[i].split(':');
+        var ts = ru[i].split(':');console.log(ts);
         var img = $(xmldoc).find('image[id='+ts[5]+']');
-        ts[5] = img.attr('image') + (img.attr('extra')?(','+img.attr('extra')):'');
+        ts[5] = img.attr('image');// + (img.attr('extra')?(','+img.attr('extra')):'');
         ru[i] = ts.join(':');
       }
     }
@@ -1482,7 +1481,7 @@ function xmladdhint(){
     $(v).append(runode);
     $(v).append('\n\t')
   });
-  $(xmldoc).find('image').remove();
+  //$(xmldoc).find('image').remove();
   editor.setValue((new XMLSerializer()).serializeToString(xmldoc).replace(/^[\t]+$/gm,'').replace(/[\r\n]+/g,'\n'));
   editor.clearHistory();
 }
@@ -1829,6 +1828,7 @@ function xmlcleanhint(retry){
     refs.filter('[sprite='+oldid+']').not('[filtered]').attr({'sprite':newid,'filtered':'1'});
   });
   //end resolve references
+  //console.log(xmldoc);
   //resolve jump target
   actioncontainers.each(function(i,v){
     calcaln($(v).children('[action]'));
@@ -1935,26 +1935,18 @@ function xmlcleanhint(retry){
       var txt = text[i].trim();
       if(txt.indexOf('tc')>0){
         txt = txt.split(':');
-        //txt[5] = $(xmldoc).find('image[image="'+txt[5].replace(/\\/g,'\\\\')+'"]:eq(0)').attr('id');
-        var img = txt[5];
-        if(!texcache[img]){
-          var newid;
-          imgid++;
-          if(img.indexOf(',')>0){
-            newdat += imgid + '=' + img.split(',')[1] + '\n';
-            newid=imgid;
-          }else{
-            texid++;
-            newdat += imgid + '->' + texid + '\n';
-            newid=texid;
-          }
-          texcache[img] = imgid;
+        //txt[5] = $(xmldoc).find('image[image*="'+txt[5].replace(/\\/g,'\\\\')+'"]:eq(0)').attr('id');
+        var iid = $(xmldoc).find('image').filter(function(){
+           return $(this).attr('image').toLowerCase()==txt[5].toLowerCase();
+        }).attr('id');
+        if(iid==undefined){ //new image?
           var newimgnode = $(xmldoc.createElement('image'));
-          newimgnode.attr({'id':imgid,'image':imgid});
+          imgid++;
+          newimgnode.attr({'id':imgid,'image':txt[5]});
           aptroot.append(newimgnode);
-          newmanifest += '<Texture id="apt_'+apt+'_'+newid+'" File="'+img.split(',')[0]+'" OutputFormat="A8R8G8B8" GenerateMipMaps="false" AllowAutomaticResize="false"/>\n';
+          iid=imgid;
         }
-        txt[5] = texcache[img];
+        txt[5] = iid;
         txt = txt.join(':');
       }
       if(txt!=''){
@@ -1966,6 +1958,28 @@ function xmlcleanhint(retry){
     newmanifest += '<AptGeometryData id="'+apt+'_'+sid+'" File="'+rupath+'" AptID="'+sid+'"/>\n';
     $(sp).attr('geometry',sid);
     ru.remove();
+  });
+  $(xmldoc).find('image').each(function(i,v){
+    var img1 = $(v).attr('image');
+    img = img1.toLowerCase();
+    var iid = $(v).attr('id');
+    if(!texcache[img]){
+      var newid;
+      if(img.indexOf(',')>0){
+        newid=iid;
+      }else{
+        texid++;
+        newid=texid;
+      }
+      texcache[img] = newid;
+      newmanifest += '<Texture id="apt_'+apt+'_'+newid+'" File="'+img1.split(',')[0]+'" OutputFormat="A8R8G8B8" GenerateMipMaps="false" AllowAutomaticResize="false"/>\n';
+    }
+    if(img.indexOf(',')>0){
+      newdat += iid + '=' + img.split(',')[1] + '\n';
+    }else{
+      newdat += iid + '->' + texid + '\n';
+    }
+    $(v).attr('image',iid);
   });
   fs.writeFileSync(filedir + aptdat, newdat, 'utf-8');
   newmanifest += '</AssetDeclaration>\n';
@@ -2162,10 +2176,11 @@ function previewcur(){
   }
   var frms = aptdoc.find('movieclip frames frame');
   frms.each(function(i,f){
-    if(ff==i||$(f).is(curnode)||$(f).find(curnode).length>0){
+    var cf;
+    if(ff==i||$(f).is(curnode)||(cf=$(f).find(curnode).length)>0){
       var objs = validobjs($(f));
       objs.each(function(_,v){
-        objpreviewcur($(v),curnode.attr('depth')==$(v).attr('depth'));
+        objpreviewcur($(v),(cf>0&&curnode.attr('depth')==$(v).attr('depth'))||$(f).is(curnode));
       });
       return false;
     }
@@ -2177,9 +2192,9 @@ function previewcur(){
     }else if(curnode.is('frame')){
       f = curnode;
     }else if(curnode.is('frames,sprite')){
-      f = curnode.find('frame').first();
+      f = curnode.find('placeobject:first').parent();
     }
-    if(f){
+    if(f.length>0){
       ctx.strokeStyle='blue';
       var objs = validobjs($(f));
       objs.each(function(_,v){
