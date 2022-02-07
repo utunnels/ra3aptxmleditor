@@ -192,11 +192,15 @@ const i18nstrings = {
   },
   'alert:dupid':{
     'zh':'存在相同id: \n',
-    'en':'\Duplicate ids: \n'
+    'en':'Duplicate ids: \n'
   },
   'alert:duptarget':{
     'zh':'存在重复标签: \n',
-    'en':'\Duplicate labels: \n'
+    'en':'Duplicate labels: \n'
+  },
+  'alert:unsolvedref':{
+    'zh':'未找到引用: \n',
+    'en':'Reference not found in: \n'
   },
 }
 const i18ndefault = 'en';
@@ -1464,7 +1468,7 @@ function xmladdhint(){
     for(var i=0;i<ru.length;i++){
       ru[i] = ru[i].trim();
       if(ru[i].indexOf('tc')>0){
-        var ts = ru[i].split(':');console.log(ts);
+        var ts = ru[i].split(':');
         var img = $(xmldoc).find('image[id='+ts[5]+']');
         ts[5] = img.attr('image');// + (img.attr('extra')?(','+img.attr('extra')):'');
         ru[i] = ts.join(':');
@@ -1810,7 +1814,7 @@ function xmlcleanhint(retry){
     alert(i18n('alert:dupid') + hasidentical[0].outerHTML.substring(0, 50) + '\n' + hasidentical[1].outerHTML.substring(0, 50));
     return false;
   }
-  var refs = aptroot.find('[character],[font],[sprite]');
+  var refs = aptroot.find('[character][character!="-1"],[font][font!="-1"],[sprite][sprite!="-1"]');
   characters.each(function(i,v){
     var $v = $(v);
     var oldid = $v.attr('id');
@@ -1826,6 +1830,17 @@ function xmlcleanhint(retry){
     refs.filter('[font='+oldid+']').not('[filtered]').attr({'font':newid,'filtered':'1'});
     refs.filter('[sprite='+oldid+']').not('[filtered]').attr({'sprite':newid,'filtered':'1'});
   });
+  var unsolvedref;
+  refs.each(function(i,v){
+    if(!$(v).attr('filtered')){
+      unsolvedref=v;
+      return false;
+    }
+  });
+  if(unsolvedref){
+    alert(i18n('alert:unsolvedref')+unsolvedref.outerHTML);
+    return false;
+  }
   //end resolve references
   //console.log(xmldoc);
   //resolve jump target
