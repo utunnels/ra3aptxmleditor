@@ -12,6 +12,8 @@
   <script src="js/jquery-ui.min.js"></script>
   <script src="codemirror/lib/codemirror.js"></script>
   <script src="codemirror/mode/xml/xml.js"></script>
+  <script src="codemirror/mode/aptscript/aptscript.js"></script>
+  <script src="codemirror/mode/aptxmlmixed/aptxmlmixed.js"></script>
   <script src="codemirror/addon/fold/foldcode.js"></script>
   <script src="codemirror/addon/fold/foldgutter.js"></script>
   <script src="codemirror/addon/fold/xml-fold.js"></script>
@@ -573,8 +575,9 @@ $(function(){
       return inner.tagName;
     });
   }
+
   var editor = CodeMirror.fromTextArea($('#text2')[0], {
-    mode: "xml",
+    mode: "aptxmlmixed",
     lineNumbers: true,
     foldGutter: true,
     indentWithTabs: true,
@@ -585,7 +588,9 @@ $(function(){
       "' '": completeIfInTag,
       "'='": completeIfInTag,
       "Ctrl-P": "autocomplete",
-      "Ctrl-F": "findPersistent"
+      "Ctrl-F": "findPersistent",
+      "Ctrl-.": "foldAll",
+      "Shift-Ctrl-.": "unfoldAll"
     },
     gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
     hintOptions: {schemaInfo: tags}
