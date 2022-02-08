@@ -17,7 +17,18 @@ CodeMirror.defineMode('aptscript', function() {
     }
   };
 
-  var commonAtoms = ["regs", "flags", "reg0", "reg1", "reg2", "reg3", "reg4", "reg5", "reg6", "reg7", "reg8", "reg9", "reg10", "reg11", "reg12", "reg13", "reg14", "reg15", "reg16", "reg17", "reg18", "reg19"];
+  var commonAtoms = ["regs", "flags", "reg0", "reg1", "reg2", "reg3", "reg4", "reg5", "reg6", "reg7", "reg8", "reg9", "reg10", "reg11", "reg12", "reg13", "reg14", "reg15", "reg16", "reg17", "reg18", "reg19",
+  "PreloadExtern",
+  "PreloadParent",
+  "PreloadRoot",
+  "SupressSuper",
+  "PreloadSuper",
+  "SupressArguments",
+  "PreloadArguments",
+  "SupressThis",
+  "PreloadThis",
+  "PreloadGlobal"
+  ];
   var commonKeywords = ["end", "function"];
   var commonCommands = [
   "ActionEnd", 
@@ -168,8 +179,8 @@ CodeMirror.defineMode('aptscript', function() {
     var sol = stream.sol();
     var ch = stream.next();
 
-    if (ch === '\'' || ch === '"' || ch === '`') {
-      state.tokens.unshift(tokenString(ch, ch === "`" ? "quote" : "string"));
+    if (ch === '\'' || ch === '"') {
+      state.tokens.unshift(tokenString(ch, "string"));
       return tokenize(stream, state);
     }
     if (ch === ':' || ch === ',' || ch=== '|') {
@@ -177,6 +188,13 @@ CodeMirror.defineMode('aptscript', function() {
     }
     if (ch === '(' || ch === ')') {
       return 'brace';
+    }
+    if (ch === '<') {
+      if(stream.match("![CDATA[")) return 'meta';
+      else console.log('?');
+    }
+    if (ch === ']') {
+      if(stream.match("]>")) return 'meta';
     }
     if (/\d/.test(ch)) {
       stream.eatWhile(/\d/);
@@ -186,23 +204,16 @@ CodeMirror.defineMode('aptscript', function() {
     }
     stream.eatWhile(/[\w-]/);
     var cur = stream.current();
-    return words.hasOwnProperty(cur) ? words[cur] : null;
+    return words.hasOwnProperty(cur) ? words[cur] : 'variable';
   }
 
   function tokenString(quote, style) {
-    var close = quote == "(" ? ")" : quote == "{" ? "}" : quote
+    var close = quote;
     return function(stream, state) {
       var next;
       while ((next = stream.next()) != null) {
         if (next === close) {
           state.tokens.shift();
-          break;
-        } else if (quote !== close && next === quote) {
-          state.tokens.unshift(tokenString(quote, style))
-          return tokenize(stream, state)
-        } else if (/['"]/.test(next) && !/['"]/.test(quote)) {
-          state.tokens.unshift(tokenStringStart(next, "string"));
-          stream.backUp(1);
           break;
         }
       }
