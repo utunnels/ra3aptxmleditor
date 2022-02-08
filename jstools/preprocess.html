@@ -2225,7 +2225,7 @@ function previewcur(){
     }else if(curnode.is('frames,sprite')){
       f = curnode.find('placeobject:first').parent();
     }
-    if(f.length>0){
+    if(f&&f.length>0){
       ctx.strokeStyle='blue';
       var objs = validobjs($(f));
       objs.each(function(_,v){
