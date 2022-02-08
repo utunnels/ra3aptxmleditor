@@ -1818,7 +1818,7 @@ function xmlcleanhint(retry){
   characters.each(function(i,v){
     var $v = $(v);
     var oldid = $v.attr('id');
-    var newid=i;
+    var newid=i;//console.log(oldid,newid,$(v).attr('image'));
     if($v.attr('id')!=undefined){
       $v.attr('id',newid);
     }
@@ -1939,9 +1939,12 @@ function xmlcleanhint(retry){
   var texcache = {};
   var imgid = aptroot.children().length-1;
   var texid = 0;
+  var ruerror=false;
+  var rucache = {};
   $(xmldoc).find('shape').each(function (_,sp){
     var sid = $(sp).attr('id');
     var ru = $(sp).find('ru');
+    var rupath = $(sp).attr('geometry');
     var text = $(ru).text().replace(/t@c/g, 'tc');
     text = text.split(/[\r\n]+/g);
     var text2 = '';
@@ -1949,30 +1952,40 @@ function xmlcleanhint(retry){
       var txt = text[i].trim();
       if(txt.indexOf('tc')>0){
         txt = txt.split(':');
-        //txt[5] = $(xmldoc).find('image[image*="'+txt[5].replace(/\\/g,'\\\\')+'"]:eq(0)').attr('id');
-        var iid = $(xmldoc).find('image').filter(function(){
-           return $(this).attr('image').toLowerCase()==txt[5].toLowerCase();
-        }).attr('id');
-        if(iid==undefined){ //new image?
-          var newimgnode = $(xmldoc.createElement('image'));
-          imgid++;
-          newimgnode.attr({'id':imgid,'image':txt[5]});
-          aptroot.append(newimgnode);
-          iid=imgid;
+        if(txt[5].indexOf('.')>0){//filename.png, filename.tga, for example, find the image using filename
+          //txt[5] = $(xmldoc).find('image[image*="'+txt[5].replace(/\\/g,'\\\\')+'"]:eq(0)').attr('id');
+          var iid = $(xmldoc).find('image').filter(function(){
+             return $(this).attr('image').toLowerCase()==txt[5].toLowerCase();
+          }).attr('id');
+          if(iid==undefined){ //new image?
+            var newimgnode = $(xmldoc.createElement('image'));
+            imgid++;
+            newimgnode.attr({'id':imgid,'image':txt[5]});
+            aptroot.append(newimgnode);
+            iid=imgid;
+          }
+          txt[5] = iid;
+        }else{ //it is an image id so find the image using id instead
+          var iid = txt[5];
+          if($(xmldoc).find('image[id='+iid+']').length==0){
+            alert(i18n('alert:unsolvedref') + rupath + ' => <image id="'+iid+'" ...');
+            ruerror=true;
+            return false;
+          }
         }
-        txt[5] = iid;
         txt = txt.join(':');
       }
       if(txt!=''){
         text2 += txt + '\n';
       }
     }
-    var rupath = $(sp).attr('geometry');
-    fs.writeFileSync(filedir + rupath, text2, 'utf-8');
+    rucache[(filedir + rupath).toLowerCase()] = text2;
+    //fs.writeFileSync(filedir + rupath, text2, 'utf-8');
     newmanifest += '<AptGeometryData id="'+apt+'_'+sid+'" File="'+rupath+'" AptID="'+sid+'"/>\n';
     $(sp).attr('geometry',sid);
     ru.remove();
   });
+  if(ruerror) return false;
   $(xmldoc).find('image').each(function(i,v){
     var img1 = $(v).attr('image');
     img = img1.toLowerCase();
@@ -1991,18 +2004,22 @@ function xmlcleanhint(retry){
     if(img.indexOf(',')>0){
       newdat += iid + '=' + img.split(',')[1] + '\n';
     }else{
-      newdat += iid + '->' + texid + '\n';
+      newdat += iid + '->' + texcache[img] + '\n';
     }
     $(v).attr('image',iid);
   });
-  fs.writeFileSync(filedir + aptdat, newdat, 'utf-8');
   newmanifest += '</AssetDeclaration>\n';
-  fs.writeFileSync(filedir + aptxml, newmanifest, 'utf-8');
   //end of save ru, dat and manifest
   //clean up
   $(xmldoc).find('*').removeAttr('filtered mylabel targetlabel aln newid');
   $(xmldoc).find('end,dummy').remove();
   input.value = (new XMLSerializer()).serializeToString(xmldoc);
+  //no error? write files, do that here, for now
+  fs.writeFileSync(filedir + aptdat, newdat, 'utf-8');
+  fs.writeFileSync(filedir + aptxml, newmanifest, 'utf-8');
+  for(var rup in rucache){
+    fs.writeFileSync(rup, rucache[rup], 'utf-8');
+  }
   return true;
 }
 
