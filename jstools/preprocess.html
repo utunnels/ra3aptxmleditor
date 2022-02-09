@@ -488,8 +488,10 @@ $(function(){
         editor.setOption('readOnly', 'nocursor');
         $('.CodeMirror').css('opacity', 0.2);
         $('#loading').show();
+        //clear preview stuff
         if(previewcanvas) previewcanvas.remove();
         previewcanvas=null;
+        curnode=null;
         
         setTimeout(function(){
           try {
