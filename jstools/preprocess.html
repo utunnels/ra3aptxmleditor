@@ -200,6 +200,10 @@ const i18nstrings = {
     'zh':'存在重复标签: \n',
     'en':'Duplicate labels: \n'
   },
+  'alert:badaction':{
+    'zh':'未能正确识别脚本: \n',
+    'en':'Incorrect script line: \n'
+  },
   'alert:unsolvedref':{
     'zh':'未找到引用: \n',
     'en':'Reference not found in: \n'
@@ -1469,7 +1473,8 @@ function xmladdhint(){
     }
   });
   $(xmldoc).find('shape').each(function(i,v){
-    var ff = $(manifest).find('AptGeometryData[id='+apt+'_'+$(v).attr('id')+']').attr('File');
+    var $v = $(v);
+    var ff = $(manifest).find('AptGeometryData[id='+apt+'_'+$v.attr('id')+']').attr('File');
     var ru = '\n' + fs.readFileSync(filedir + ff, 'utf-8');
     ru = ru.split(/[\r\n]+/);
     for(var i=0;i<ru.length;i++){
@@ -1486,12 +1491,19 @@ function xmladdhint(){
     var cdata = xmldoc.createCDATASection(ru);
     var runode = xmldoc.createElement('ru');
     runode.append(cdata);
-    $(v).attr('geometry', ff);
-    $(v).append('\n\t\t')
-    $(v).append(runode);
-    $(v).append('\n\t')
+    $v.attr('geometry', ff);
+    $v.append('\n\t\t')
+    $v.append(runode);
+    $v.append('\n\t')
   });
   //$(xmldoc).find('image').remove();
+  //misc adjustments
+  //swap red and blue for edittext
+  $(xmldoc).find('edittext').each(function(i,v){
+    var $v=$(v);
+    var r=$v.attr('red'),b=$v.attr('blue');
+    $v.attr('red',b); $v.attr('blue',r); 
+  });
   editor.setValue((new XMLSerializer()).serializeToString(xmldoc).replace(/^[\t]+$/gm,'').replace(/[\r\n]+/g,'\n'));
   editor.clearHistory();
 }
@@ -1499,13 +1511,15 @@ function el(t){
   return $(xmldoc.createElement(t));
 }
 function bad(t){
-  return $(xmldoc.createElement('bad')).attr('text',t);
+  return $(xmldoc.createElement('bad')).attr('text',escape(t));
 }
 function stringtoaction(s){
   s = s.trim();
   if(!s) return null;
   var m;
-  if(s.indexOf('function')==0&&s.indexOf('flags:')>0){
+  if(s[0]==';'){
+    return s;
+  }else if(s.indexOf('function')==0&&s.indexOf('flags:')>0){
     m = s.match(/function[\s]+([\w]*)\([\s]*(flags\:([\w\|]+)[\s]*,[\s]*regs:([\w]+))([^\)]*)\)/i);
     if(m){
       var a = el('definefunction2');
@@ -1568,7 +1582,8 @@ function stringtoaction(s){
           try{
             args = eval('[' + args + ']');
           }catch(ex){
-            args = [args];
+            if(args.match(/^[\s]*[\w]+$/)) args = [args];
+            else return bad(s);
           }
         }
       }
@@ -1655,13 +1670,23 @@ function stringtoaction(s){
   return bad(s);
 }
 
+//get line number of a script line, not perfect, but should handle most situations
+function getline(v,i,j){
+/*
+  var cv = v,l=0;
+  while(cv.length!=0){
+    var t = cv.text();
+  }*/
+  return i;
+}
+
 function xmlcleanhint(retry){
   xmldoc = $.parseXML(editor.getValue());
   var actioncontainers = $(xmldoc).find('initaction, buttonaction, action, clipaction');
   //var t1 = new Date().getTime();
   //translate string to actions
-  var lastlabel = '';
-  actioncontainers.each(function(i,v){
+  var lastlabel = '', isbad=false;
+  actioncontainers.each(function(j,v){
     v=$(v);
     var text = v.text();
     if(retry) {
@@ -1672,20 +1697,44 @@ function xmlcleanhint(retry){
     text = text.split(/[\r\n]+/);
     v.empty();
     var aa = [];
+    var fstk = []; //function stack to check end of function
     for(var i=0;i<text.length;i++){
       var action=stringtoaction(text[i]);
       if(typeof action=='string'){
-        lastlabel = action;
+        if(action[0]!=';') lastlabel = action;
       }else if(action){
+        if(action.is('bad')){
+          isbad=true;
+          alert(i18n('alert:badaction') + text[i].trim() + '\n\nline:' + getline(v,i,j));
+          return false;
+        }
         if(lastlabel){
           action.attr('mylabel', lastlabel);
           lastlabel = '';
         }
+        if(action[0].tagName.indexOf('function')>0){
+          fstk.push([text[i],i]);
+        }else if(action[0].tagName=='end'){
+          if(fstk.length==0){
+            isbad=true;
+            alert(i18n('alert:badaction') + 'end\n\n unexpected end of function' + '\n\nline:' + getline(v,i,j));
+            return false;
+          }
+          fstk.pop();
+        }
         aa.push(action);
       }
     }
+    if(fstk.length>0){
+      isbad=true;
+      alert(i18n('alert:badaction') + fstk[0][0] + '\n\n no end of function' + '\n\nline:' + getline(v,fstk[0][1],j));
+      return false;
+    }
     v.append(aa);
   });
+  if(isbad){
+    return false;
+  }
   //end of string to actions
   //var t2 = new Date().getTime()-t1;
 
@@ -1940,7 +1989,7 @@ function xmlcleanhint(retry){
     $(v).removeAttr('keycode');
   });
   //end of resolve flags
-  //save ru, dat and manifest
+  //ru and image
   var newmanifest = "<?xml version='1.0' encoding='utf-8'?>\n" + '<AssetDeclaration xmlns="uri:ea.com:eala:asset" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n<AptAptData id="'+apt+'_apt" File="'+aptapt+'" />\n<AptConstData id="'+apt+'_const" File="'+aptconst+'" />\n<AptDatData id="'+apt+'_dat" File="'+aptdat+'" />\n';
   var newdat =  "; Created by AptXMLEditor.\n";
   var texcache = {};
@@ -2016,7 +2065,14 @@ function xmlcleanhint(retry){
     $(v).attr('image',iid);
   });
   newmanifest += '</AssetDeclaration>\n';
-  //end of save ru, dat and manifest
+  //end of ru and image
+  //misc adjustments
+  //swap red and blue for edittext
+  $(xmldoc).find('edittext').each(function(i,v){
+    var $v=$(v);
+    var r=$v.attr('red'),b=$v.attr('blue');
+    $v.attr('red',b); $v.attr('blue',r); 
+  });
   //clean up
   $(xmldoc).find('*').removeAttr('filtered mylabel targetlabel aln newid');
   $(xmldoc).find('end,dummy').remove();
