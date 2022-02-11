@@ -70,7 +70,7 @@ CodeMirror.defineMode('aptscript', function() {
   "ActionRandom", 
   "ActionMBLength", 
   "ActionOrd", 
-  "AcrionChr", 
+  "ActionChr", 
   "ActionGetTimer", 
   "ActionMBSubString", 
   "ActionMBOrd", 
