@@ -1671,13 +1671,35 @@ function stringtoaction(s){
 }
 
 //get line number of a script line, not perfect, but should handle most situations
-function getline(v,i,j){
-/*
-  var cv = v,l=0;
-  while(cv.length!=0){
-    var t = cv.text();
-  }*/
-  return i;
+function getline(ac,i,j){
+  var lc = editor.lineCount();
+  for(var l=0,t=0,a=ac.eq(t);l<lc;l++){
+    var lts = editor.getLineTokens(l);
+    for(var ii=0;ii<lts.length;ii++){
+      if(lts[ii].type=="tag bracket"&&lts[ii].string=="<"&&lts[ii+1]&&lts[ii+1].string==a[0].tagName){
+        if(t==j){//found the container tag
+          console.log(j);
+          for(var b=l;b<lc;b++){
+            var tks = editor.getLineTokens(b);
+            for(var bb=(b==l?ii+1:0);bb<tks.length;bb++){console.log(tks[bb].type,tks[bb].string);
+              if(tks[bb].type=="meta"&&tks[bb].string=="<![CDATA["){//found cdata line
+                return b+i+1;
+              }
+              if(tks[bb].type=="tag bracket"&&tks[bb].string[0]=="<"){
+                return -1;
+              }
+            }
+          }
+        }
+        a=ac.eq(++t);
+        if(a.length==0) {
+          return -1;
+        }
+      }
+    }
+  }
+
+  return -1;
 }
 
 function xmlcleanhint(retry){
@@ -1705,7 +1727,7 @@ function xmlcleanhint(retry){
       }else if(action){
         if(action.is('bad')){
           isbad=true;
-          alert(i18n('alert:badaction') + text[i].trim() + '\n\nline:' + getline(v,i,j));
+          alert(i18n('alert:badaction') + text[i].trim() + '\n\nline:' + getline(actioncontainers,i,j));
           return false;
         }
         if(lastlabel){
@@ -1717,7 +1739,7 @@ function xmlcleanhint(retry){
         }else if(action[0].tagName=='end'){
           if(fstk.length==0){
             isbad=true;
-            alert(i18n('alert:badaction') + 'end\n\n unexpected end of function' + '\n\nline:' + getline(v,i,j));
+            alert(i18n('alert:badaction') + 'end\n\n unexpected end of function' + '\n\nline:' + getline(actioncontainers,i,j));
             return false;
           }
           fstk.pop();
@@ -1727,7 +1749,7 @@ function xmlcleanhint(retry){
     }
     if(fstk.length>0){
       isbad=true;
-      alert(i18n('alert:badaction') + fstk[0][0] + '\n\n no end of function' + '\n\nline:' + getline(v,fstk[0][1],j));
+      alert(i18n('alert:badaction') + fstk[0][0] + '\n\n no end of function' + '\n\nline:' + getline(actioncontainers,fstk[0][1],j));
       return false;
     }
     v.append(aa);
