@@ -224,7 +224,7 @@ $(function(){
 });
 </script>
  </head>
- <body>
+ <body><iframe name="ru" id="ru" src="ru.html" style="display:none"></iframe>
  <div id="saving"><script>i18nw('text:saving');</script></div>
  <div id="loading"><script>i18nw('text:opening');</script></div>
  <div class="hidden">
@@ -544,15 +544,18 @@ $(function(){
         var w = 700,h=450;
         var x = screen.width/2 - w/2;
         var y = screen.height/2 - h/2;
-        var url = 'ru.html?folder='+filedir+'&apt='+apt;
+        var url = 'ru.html';
         if(!rupreview || rupreview.closed){
           rupreview = window.open(url,"_blank","width="+w+",height="+h+",left="+x+",top="+y,false);
-        }else if(rupreview&&decodeURI(rupreview.location.href).indexOf(url)<0){
+        }else{
           rupreview.location.href=url;
         }
       }
     }
   }));
+  $(window).on('unload',function(){
+    if(rupreview) rupreview.close();
+  });
   menu.append(new nw.MenuItem({
     label: i18n('menu:boxpreview'),
     click:function(){
@@ -1493,7 +1496,7 @@ function xmladdhint(){
       if(ru[i].indexOf('tc')>0){
         var ts = ru[i].split(':');
         var img = $(xmldoc).find('image[id='+ts[5]+']');
-        ts[5] = img.attr('image');// + (img.attr('extra')?(','+img.attr('extra')):'');
+        ts[5] = img.length?img.attr('image'):ts[5];// + (img.attr('extra')?(','+img.attr('extra')):'');
         ru[i] = ts.join(':');
       }
     }
@@ -2055,7 +2058,7 @@ function xmlcleanhint(retry){
           txt[5] = iid;
         }else{ //it is an image id so find the image using id instead
           var iid = txt[5];
-          if($(xmldoc).find('image[id='+iid+']').length==0){
+          if($(xmldoc).find('image[id='+iid+'],empty[id='+iid+']').length==0){
             alert(i18n('alert:unsolvedref') + rupath + ' => <image id="'+iid+'" ...');
             ruerror=true;
             return false;
@@ -2131,8 +2134,8 @@ function validobjs(frm){
         if($(o).attr('character')<0){ //update existing
           var old = objs.filter('[depth='+$(o).attr('depth')+']');
           if($(o).attr('flags').indexOf('Move')>=0){
-            old.attr('_tx', Number(old.attr('_tx'))+Number($(o).attr('tx')));
-            old.attr('_ty', Number(old.attr('_ty'))+Number($(o).attr('ty')));
+            old.attr('_tx', Number(old.attr('tx'))+Number($(o).attr('tx')));
+            old.attr('_ty', Number(old.attr('ty'))+Number($(o).attr('ty')));
           }
           if($(o).attr('flags').indexOf('HasMatrix')>=0){
             old.attr('_rotm00', $(o).attr('rotm00'));
@@ -2191,6 +2194,14 @@ function objpreview(o){
         });
       }else{
         var l = chr.attr('left'),t=chr.attr('top'),r=chr.attr('right'),b=chr.attr('bottom');
+        if(previewdetail>=2&&ruwin&&chr.is('shape')){
+          try{
+            var simg = ruwin.rv.rushot(chr.attr('id'));
+            if(simg){
+              c.drawImage(simg.image,-simg.x,-simg.y);
+            }
+          }finally{}
+        }
         c.rect(l,t,r-l,b-t);
       }
       prec++;
@@ -2395,24 +2406,29 @@ editor.on('change',function(){
   docchanged=true;
 });
 
+var ruwin;
 function shapepreview(refresh){
   if(!aptdoc||refresh||docchanged){
     aptdoc = $($.parseXML(editor.getValue()));
     docchanged=false;
   } 
   if(!previewcanvas||refresh){
-    prex=prey=0;
-    previewcanvas = $('<canvas id="boxpreview" tabIndex="0" width="'+aptdoc.find('movieclip').attr('screensizex')+'" height="'+aptdoc.find('movieclip').attr('screensizey')+'" ></canvas>').css({'background':'#ddd','position':'absolute','left':'50%','top':'50%','z-index':100, 'margin-left':'-'+(aptdoc.find('movieclip').attr('screensizex')/2)+'px','margin-top':'-'+(aptdoc.find('movieclip').attr('screensizey')/2)+'px'});
-    ctx = previewcanvas[0].getContext('2d');
-    $('#boxpreview').remove();
-    $('body').append(previewcanvas);
-    previewcanvas.draggable();
-    previewcanvas.draggable('option', 'cursor', 'none');
+    setTimeout(() => {
+      prex=prey=0;
+      previewcanvas = $('<canvas id="boxpreview" tabIndex="0" width="'+aptdoc.find('movieclip').attr('screensizex')+'" height="'+aptdoc.find('movieclip').attr('screensizey')+'" ></canvas>').css({'background':'#ddd','position':'absolute','left':'50%','top':'50%','z-index':100, 'margin-left':'-'+(aptdoc.find('movieclip').attr('screensizex')/2)+'px','margin-top':'-'+(aptdoc.find('movieclip').attr('screensizey')/2)+'px'});
+      ctx = previewcanvas[0].getContext('2d');
+      $('#boxpreview').remove();
+      $('body').append(previewcanvas);
+      previewcanvas.draggable();
+      previewcanvas.draggable('option', 'cursor', 'none');
+    }, 500);
+    ruwin=window.open('ru.html','ru');
+  } else {
+    ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+    getcurrentnode2();
+    preview();
+    previewcur();
   }
-  ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
-  getcurrentnode2();
-  preview();
-  previewcur();
 }
 
 $('body').on('wheel',function(e){
@@ -2448,7 +2464,7 @@ $('body').on('keydown',function(e){
       prey+=10;
     }else if(e.key=='d'){
       previewdetail++;
-      if(previewdetail>1) previewdetail=0;
+      if(previewdetail>2) previewdetail=0;
     }
  }
 });
