@@ -20,16 +20,20 @@ html, body {padding:0;margin:0; overflow:hidden;}
   const fs = require('fs');
   const os = require('os');
   const path = require('path');
-  function Ruview(){
-    var renderer = new THREE.WebGLRenderer({alpha:true,antialias:true});
-    renderer.setSize( window.innerWidth, window.innerHeight );
+  function Ruview(inf){
+    var inf = inf||{};
+    inf.width=inf.width||window.innerWidth;
+    inf.height=inf.height||window.innerHeight
+    var renderer = new THREE.WebGLRenderer({alpha:true,antialias:true, preserveDrawingBuffer: !!inf.preserveDrawingBuffer});
+    renderer.setSize(inf.width, inf.height);
     document.body.appendChild( renderer.domElement );
 
     var scene = new THREE.Scene();
-    var camera = new THREE.OrthographicCamera( window.innerWidth/-2, window.innerWidth/2, window.innerHeight/-2, window.innerHeight/2, -100, 100 );
+    var camera = new THREE.OrthographicCamera(inf.width/-2, inf.width/2, inf.height/-2, inf.height/2, -100, 100 );
     var orbit = new THREE.OrbitControls( camera, document.body);
     orbit.addEventListener( 'change', refresh );
     this.scene = scene;
+    this.renderer=renderer;
     var meshes = {}, currentmeshes;
     var textures = {};
 
@@ -210,18 +214,63 @@ html, body {padding:0;margin:0; overflow:hidden;}
     var geh = new THREE.BufferGeometry();
     geh.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array([-204800,0,-1,204800,0,-1]), 3 ) );
     var hline = new THREE.Line( geh, lmat );
-    scene.add(hline);
+    if(!inf.noGrids) scene.add(hline);
     var gev = new THREE.BufferGeometry();
     gev.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array([0,-204800,-1,0,204800,-1]), 3 ) );
     var vline = new THREE.Line( gev, lmat );
-    scene.add(vline);
+    if(!inf.noGrids) scene.add(vline);
     meshes['misc'] = [hline,vline];
 
     function refresh(){
       renderer.render( scene, camera );
     }
 
+    ruimages = {};
+
+    function rushot(which){
+      if(!ruimages[which]){
+        var gvisible=hline.visible;
+        hline.visible=vline.visible=false;
+        previewru(which);
+        var ms = scene.children;
+        var xmin=Infinity,xmax=-Infinity,ymin=Infinity,ymax=-Infinity;
+        for(var i=0;i<ms.length;i++){
+          var m=ms[i];
+          if(m==hline||m==vline) continue;
+          m.geometry.computeBoundingBox();
+          var bb=m.geometry.boundingBox;
+          if(bb.max.x>xmax) xmax=bb.max.x;
+          if(bb.max.y>ymax) ymax=bb.max.y;
+          if(bb.min.x<xmin) xmin=bb.min.x;
+          if(bb.min.y<ymin) ymin=bb.min.y;
+        }
+        if(xmax==xmin&&ymax==ymin){
+          return null;//nothing to draw
+        }
+        if(xmax==xmin) xmax++;
+        if(ymin==ymax) ymax++;
+        var w = xmax-xmin,h=ymax-ymin;
+        camera.left=xmin;
+        camera.top=ymin;
+        camera.right=xmax;
+        camera.bottom=ymax;
+        camera.aspect = w/h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+        renderer.render(scene, camera);
+        var img =new Image();
+        img.src = renderer.domElement.toDataURL();
+        ruimages[which] = {image:img, x:-xmin,y:-ymin};
+        hline.visible=vline.visible=gvisible;
+        onWindowResize();
+      }else{
+        return ruimages[which];
+      }
+    }
+    this.rushot=rushot;
+
     function onWindowResize() {
+      if(inf.noAutoResize) return;
 
       camera.left=window.innerWidth/-2;
       camera.top=window.innerHeight/-2;
@@ -267,7 +316,7 @@ html, body {padding:0;margin:0; overflow:hidden;}
       renderer = null;
     }; 
   }
-  var rv = new Ruview();
+  var rv = new Ruview({preserveDrawingBuffer:true});
 </script>
 </body>
 </html>
