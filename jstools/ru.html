@@ -21,6 +21,7 @@ html, body {padding:0;margin:0; overflow:hidden;}
   const os = require('os');
   const path = require('path');
   function Ruview(inf){
+    var opener=window.opener||window.parent;
     var inf = inf||{};
     inf.width=inf.width||window.innerWidth;
     inf.height=inf.height||window.innerHeight
@@ -61,8 +62,10 @@ html, body {padding:0;margin:0; overflow:hidden;}
         return textures[f] = new THREE.TGALoader().load(ff,fl);
       }else if(f.match(/\.dds$/i)){
         return textures[f] = new THREE.DDSLoader().load(ff,fl);
-      }else{
+      }else if(f.match(/\.[a-zA-Z0-9]+$/i)){
         return textures[f] = new THREE.TextureLoader().load(ff,fl);
+      }else{
+        return textures[f] = textures['empty'] = textures['empty']||new THREE.TextureLoader().load('empty.png',fl);
       }
     }
 
@@ -228,7 +231,7 @@ html, body {padding:0;margin:0; overflow:hidden;}
     ruimages = {};
 
     function rushot(which){
-      if(!ruimages[which]){
+      if((!ruimages[which])||ruimages[which].x==-Infinity){
         var gvisible=hline.visible;
         hline.visible=vline.visible=false;
         previewru(which);
