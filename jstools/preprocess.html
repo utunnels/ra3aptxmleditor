@@ -2318,6 +2318,8 @@ function objpreviewcur(o,sl){
 function previewcur(){
   if(!curnode) return;
   prec = 0;
+  ctx.strokeStyle='red';
+  ctx.fillStyle='red';
   ctx.save();
   ctx.translate(prex,prey);
   ctx.beginPath();
@@ -2347,16 +2349,15 @@ function previewcur(){
     }
     if(f&&f.length>0){
       ctx.strokeStyle='blue';
+      ctx.fillStyle='blue';
       var objs = validobjs($(f));
       objs.each(function(_,v){
         objpreviewcur($(v));
       });
     }
   }
-  ctx.strokeStyle='red';
-  ctx.fillStyle='red';
-  ctx.globalAlpha=0.2;
   ctx.stroke();
+  ctx.globalAlpha=0.2;
   ctx.fill();
   ctx.restore();
 }
