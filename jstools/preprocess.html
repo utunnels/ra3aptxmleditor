@@ -2121,7 +2121,9 @@ function xmlcleanhint(retry){
   return true;
 }
 
-var previewcanvas, ctx, aptdoc,curnode, prex=0, prey=0, previewdetail=0;
+var previewcanvas, ctx, aptdoc,curnode, prex=0, prey=0, previewdetail=0, previewdepth='9999', showcur=true;
+var previewstack,previewstackcur;
+var prec = 0;
 
 function validobjs(frm){
   var frms = frm.parent().children(); //frames
@@ -2173,13 +2175,18 @@ function validobjs(frm){
   return objs;
 }
 
-function objpreview(o){
+function objpreview(o,sl,depth){
   var c = ctx, a = aptdoc;
+  var cd = o.attr('clipdepth');
+  if(cd!='-1') return; //ignore clipping for now
   c.save();
   c.transform(o.attr('_rotm00'),o.attr('_rotm01'),o.attr('_rotm10'),o.attr('_rotm11'),o.attr('_tx'),o.attr('_ty'));
   var ch = o.attr('character');
+  depth=depth||'';
+  depth+=o.attr('depth').padStart(4,'0');
   if(ch>0){
     chr = a.find('aptdata').children().filter('[id='+ch+']');
+    var iscur = sl||(curnode&&(o.is(curnode)||chr.is(curnode)||curnode.find(o).length>0));
     if(chr.is('[right]')){
       var tr = chr.find('triangle');
       var vert = chr.find('vertex');
@@ -2187,10 +2194,14 @@ function objpreview(o){
         tr.each(function(_,tri){
           var $t = $(tri);
           var verts = [vert.eq($t.attr('v1')),vert.eq($t.attr('v2')),vert.eq($t.attr('v3'))];
-          c.moveTo(verts[0].attr('x'),verts[0].attr('y'));
-          c.lineTo(verts[1].attr('x'),verts[1].attr('y'));
-          c.lineTo(verts[2].attr('x'),verts[2].attr('y'));
-          c.closePath();
+          previewstack.push({cmd:'stroke',
+          params:`c.moveTo(${verts[0].attr('x')},${verts[0].attr('y')});
+          c.lineTo(${verts[1].attr('x')},${verts[1].attr('y')});
+          c.lineTo(${verts[2].attr('x')},${verts[2].attr('y')});
+          c.closePath();`,
+          selected:iscur,
+          transform:c.getTransform(),
+          depth:depth});
         });
       }else{
         var l = chr.attr('left'),t=chr.attr('top'),r=chr.attr('right'),b=chr.attr('bottom');
@@ -2198,23 +2209,49 @@ function objpreview(o){
           try{
             var simg = ruwin.rv.rushot(chr.attr('id'));
             if(simg){
-              c.drawImage(simg.image,-simg.x,-simg.y);
+              previewstack.push({cmd:'drawImage',
+              params:[simg.image,-simg.x,-simg.y],
+              selected:iscur,
+              transform:c.getTransform(),
+              depth:depth});
             }
-          }finally{}
+          }catch(ex){console.log(ex.stack);}finally{}
         }
-        c.rect(l,t,r-l,b-t);
+        previewstack.push({cmd:'stroke',
+        params:`c.rect(${l},${t},${r-l},${b-t});`,
+        selected:iscur,
+        transform:c.getTransform(),
+        depth:depth});
       }
+      prec++;
+    }else if(chr.is('image')){
+      var m = c.getTransform();
+      c.save();
+      c.setTransform(1,m.b,m.c,1,m.e,m.f); 
+      previewstack.push({cmd:'stroke',
+      params:`c.rect(0,0,16,16);
+      c.moveTo(4,0);
+      c.lineTo(4,16);
+      c.moveTo(12,0);
+      c.lineTo(12,16);`,
+      selected:iscur,
+      transform:c.getTransform(),
+      depth:depth});
+      c.restore();
       prec++;
     }else if(chr.is('empty')){
       var m = c.getTransform();
       c.save();
-      //c.setTransform(m.a,m.b,m.c,m.d,m.e,m.f);
       c.setTransform(1,m.b,m.c,1,m.e,m.f); 
-      c.rect(0,0,16,16);
+      previewstack.push({cmd:'stroke',
+      params:`c.rect(0,0,16,16);
       c.moveTo(0,0);
       c.lineTo(16,16);
       c.moveTo(16,0);
-      c.lineTo(0,16);
+      c.lineTo(0,16);`,
+      selected:iscur,
+      transform:c.getTransform(),
+      depth:depth});
       c.restore();
       prec++;
     }else{//sprite
@@ -2227,7 +2264,7 @@ function objpreview(o){
         if(ff==i||(curnode&&($(f).is(curnode)||$(f).find(curnode).length>0))){
           var objs = validobjs($(f));
           objs.each(function(_,v){
-            objpreview($(v));
+            objpreview($(v),iscur,depth);
           });
           return false;
         }
@@ -2239,101 +2276,13 @@ function objpreview(o){
 
 function preview(){//var dat1 = new Date().getTime();
   prec = 0;
+  previewstack=[];
   ctx.save();
-  ctx.strokeStyle='black';
   ctx.translate(prex,prey);
   ctx.save();
   ctx.fillStyle='#ddf';
   ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);
   ctx.restore();
-  ctx.beginPath();
-  var ff=-1;
-  if(aptdoc.find('movieclip:first').find(curnode).length==0){
-    ff=aptdoc.find('placeobject:first').parent().attr('id')||0;
-  }
-  var frms = aptdoc.find('movieclip frames frame');
-  frms.each(function(i,f){
-    if(ff==i||$(f).is(curnode)||$(f).find(curnode).length>0){
-      var objs = validobjs($(f));
-      objs.each(function(_,v){
-        objpreview($(v));
-      });
-      return false;
-    }
-  });
-  ctx.stroke();
-  ctx.restore();//console.log(new Date().getTime()-dat1);
-}
-
-var prec = 0;
-function objpreviewcur(o,sl){
-  var c = ctx, a = aptdoc;
-  c.save();
-  c.transform(o.attr('_rotm00'),o.attr('_rotm01'),o.attr('_rotm10'),o.attr('_rotm11'),o.attr('_tx'),o.attr('_ty'));
-  var ch = o.attr('character');
-  if(ch>0){
-    chr = a.find('aptdata:first').children().filter('[id='+ch+']');
-    var iscur = sl||o.is(curnode)||chr.is(curnode)||curnode.find(o).length>0;
-    if(chr.is('[right]')){
-      if(iscur){
-        var tr = chr.find('triangle');
-        var vert = chr.find('vertex');
-        if(previewdetail>=1&&tr.length){
-          tr.each(function(_,tri){
-            var $t = $(tri);
-            var verts = [vert.eq($t.attr('v1')),vert.eq($t.attr('v2')),vert.eq($t.attr('v3'))];
-            c.moveTo(verts[0].attr('x'),verts[0].attr('y'));
-            c.lineTo(verts[1].attr('x'),verts[1].attr('y'));
-            c.lineTo(verts[2].attr('x'),verts[2].attr('y'));
-            c.closePath();
-          });
-        }else{
-          var l = chr.attr('left'),t=chr.attr('top'),r=chr.attr('right'),b=chr.attr('bottom');
-          c.rect(l,t,r-l,b-t);
-        }
-        prec++;
-      }
-    }else if(chr.is('empty')){
-      if(iscur){
-        var m = c.getTransform();
-        c.save();
-        c.setTransform(1,m.b,m.c,1,m.e,m.f);
-        c.rect(0,0,16,16);
-        c.moveTo(0,0);
-        c.lineTo(16,16);
-        c.moveTo(16,0);
-        c.lineTo(0,16);
-        c.restore();
-        prec++;
-      }
-    }else{ //sprite
-      var ff=-1;
-      if(chr.find(curnode).length==0){
-        ff=chr.find('placeobject:first').parent().attr('id')||0;
-      }
-      var frms = chr.find('frame');
-      frms.each(function(i,f){
-        if(ff==i||$(f).is(curnode)||$(f).find(curnode).length>0){
-          var objs = validobjs($(f));
-          objs.each(function(_,v){
-            objpreviewcur($(v),iscur);
-          });
-          return false;
-        }
-      });
-    }
-  }
-  c.restore();
-}
-
-function previewcur(){
-  if(!curnode) return;
-  prec = 0;
-  ctx.strokeStyle='red';
-  ctx.fillStyle='red';
-  ctx.save();
-  ctx.translate(prex,prey);
-  ctx.beginPath();
   var ff=-1;
   if(aptdoc.find('movieclip:first').find(curnode).length==0){
     ff=aptdoc.find('placeobject:first').parent().attr('id')||0;
@@ -2344,12 +2293,12 @@ function previewcur(){
     if(ff==i||$(f).is(curnode)||(cf=$(f).find(curnode).length)>0){
       var objs = validobjs($(f));
       objs.each(function(_,v){
-        objpreviewcur($(v),(cf>0&&curnode.attr('depth')==$(v).attr('depth'))||$(f).is(curnode));
+        objpreview($(v),(cf>0&&curnode&&curnode.attr('depth')==$(v).attr('depth'))||(curnode&&$(f).is(curnode)));
       });
       return false;
     }
   });
-  if(prec==0&&aptdoc.find('movieclip:first').find(curnode).length==0){
+  if(prec==0&&curnode&&aptdoc.find('movieclip:first').find(curnode).length==0){
     var f;
     if(curnode.is('placeobject')){
       f = curnode.parent();
@@ -2359,17 +2308,39 @@ function previewcur(){
       f = curnode.find('placeobject:first').parent();
     }
     if(f&&f.length>0){
-      ctx.strokeStyle='blue';
-      ctx.fillStyle='blue';
       var objs = validobjs($(f));
       objs.each(function(_,v){
-        objpreviewcur($(v));
+        objpreview($(v));
       });
     }
   }
-  ctx.stroke();
-  ctx.globalAlpha=0.2;
-  ctx.fill();
+  ctx.restore();//console.log(new Date().getTime()-dat1);
+  ctx.save();
+  previewstack.sort(function(a,b){
+    var da=a.depth||[];
+    var db=b.depth||[];
+    if(da>db) return 1;
+    else if(da<db) return -1;
+    else return 0;
+  });
+  for(var i=0;i<previewstack.length;i++){
+    var p=previewstack[i];
+    if(p.depth>previewdepth) {
+      continue;
+    }
+    var f=p.transform;
+    ctx.setTransform(f.a,f.b,f.c,f.d,f.e,f.f);
+    if(p.cmd=='drawImage'){
+      ctx.drawImage(...p.params);
+    }else if(p.cmd=='stroke'){
+      var c=ctx;
+      ctx.strokeStyle=(showcur&&p.selected)?'red':'black';
+      ctx.beginPath();
+      eval(p.params);
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.stroke();
+    }
+  }
   ctx.restore();
 }
 
@@ -2427,7 +2398,6 @@ function shapepreview(refresh){
     ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
     getcurrentnode2();
     preview();
-    previewcur();
   }
 }
 
@@ -2465,6 +2435,28 @@ $('body').on('keydown',function(e){
     }else if(e.key=='d'){
       previewdetail++;
       if(previewdetail>2) previewdetail=0;
+    }else if(e.key=='c'){
+      showcur=!showcur;
+    }else if(e.key=='p'){
+      var mindepth='9999',maxdepth='',dp='9999';
+      for(var i=0;i<previewstack.length;i++){
+        var p=previewstack[i];
+        if(p.depth>maxdepth) maxdepth=p.depth;
+        if(p.depth<mindepth) mindepth=p.depth;
+        if(p.depth>previewdepth&&p.depth<dp) dp=p.depth;
+      }
+      if(dp>maxdepth) dp=maxdepth;
+      previewdepth=dp;
+    }else if(e.key=='P'){
+      var mindepth='9999',maxdepth='',dp='';
+      for(var i=0;i<previewstack.length;i++){
+        var p=previewstack[i];
+        if(p.depth>maxdepth) maxdepth=p.depth;
+        if(p.depth<mindepth) mindepth=p.depth;
+        if(p.depth<previewdepth&&p.depth>dp) dp=p.depth;
+      }
+      if(dp<mindepth) dp=mindepth;
+      previewdepth=dp;
     }
  }
 });
