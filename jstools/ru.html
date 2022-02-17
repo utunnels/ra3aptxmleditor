@@ -37,9 +37,8 @@ html, body {padding:0;margin:0; overflow:hidden;}
     this.renderer=renderer;
     var meshes = {}, currentmeshes;
     var textures = {};
-
     var xml = $.parseXML(opener.editor.getValue());
-
+    var loading=0;
     var rus = $(xml).find('shape');
     $('#rulist').empty();
     rus.each(function(_,v){
@@ -56,18 +55,20 @@ html, body {padding:0;margin:0; overflow:hidden;}
     function loadtexture(f){
       f = f.toLowerCase();
       if(textures[f]) return textures[f];
-      function fl(tex){tex.flipY=false; }
+      function fl(tex){tex.flipY=false;loading--;}
       var ff = opener.filedir + f;
       if(f.match(/\.tga$/i)){
-        return textures[f] = new THREE.TGALoader().load(ff,fl);
+        return textures[f] = (++loading,new THREE.TGALoader().load(ff,fl));
       }else if(f.match(/\.dds$/i)){
-        return textures[f] = new THREE.DDSLoader().load(ff,fl);
+        return textures[f] = (++loading,new THREE.DDSLoader().load(ff,fl));
       }else if(f.match(/\.[a-zA-Z0-9]+$/i)){
-        return textures[f] = new THREE.TextureLoader().load(ff,fl);
+        return textures[f] = (++loading,new THREE.TextureLoader().load(ff,fl));
       }else{
-        return textures[f] = textures['empty'] = textures['empty']||new THREE.TextureLoader().load('empty.png',fl);
+        return textures[f] = textures['empty'] = textures['empty']||(++loading,new THREE.TextureLoader().load('empty.png',fl));
       }
     }
+
+    this.getloading=function(){return loading;}
 
     function getru(index){
       return $(xml).find('shape[id='+index+'] ru').text();
@@ -86,7 +87,7 @@ html, body {padding:0;margin:0; overflow:hidden;}
       }
     }
 
-    function previewru(which, pmatrix){
+    function previewru(which, pmatrix){if(loading) return;
       if(currentmeshes){
         for(var i=0;i<currentmeshes.length;i++){
           scene.remove(currentmeshes[i]);
@@ -231,6 +232,7 @@ html, body {padding:0;margin:0; overflow:hidden;}
     ruimages = {};
 
     function rushot(which){
+      if(loading) return null;
       if((!ruimages[which])||ruimages[which].x==-Infinity){
         var gvisible=hline.visible;
         hline.visible=vline.visible=false;
