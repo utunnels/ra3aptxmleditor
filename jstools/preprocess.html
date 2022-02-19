@@ -1902,6 +1902,7 @@ function xmlcleanhint(retry){
     hasidentical = [a,b];
     return 0;
   });
+  aptroot.append(characters);
   if(hasidentical!=undefined){
     alert(i18n('alert:dupid') + hasidentical[0].outerHTML.substring(0, 50) + '\n' + hasidentical[1].outerHTML.substring(0, 50));
     return false;
@@ -2121,7 +2122,7 @@ function xmlcleanhint(retry){
   return true;
 }
 
-var previewcanvas, ctx, aptdoc,curnode, prex=0, prey=0, previewdetail=0, previewdepth='9999', showcur=true;
+var previewcanvas, ctx, aptdoc,curnode, prex=0, prey=0, previewdetail=0, previewdepth='9999', showcur=true, previewframe=0;
 var previewstack,previewstackcur;
 var prec = 0;
 
@@ -2136,8 +2137,8 @@ function validobjs(frm){
         if($(o).attr('character')<0){ //update existing
           var old = objs.filter('[depth='+$(o).attr('depth')+']');
           if($(o).attr('flags').indexOf('Move')>=0){
-            old.attr('_tx', Number(old.attr('tx'))+Number($(o).attr('tx')));
-            old.attr('_ty', Number(old.attr('ty'))+Number($(o).attr('ty')));
+            old.attr('_tx', Number($(o).attr('tx')));
+            old.attr('_ty', Number($(o).attr('ty')));
           }
           if($(o).attr('flags').indexOf('HasMatrix')>=0){
             old.attr('_rotm00', $(o).attr('rotm00'));
@@ -2255,11 +2256,13 @@ function objpreview(o,sl,depth){
       c.restore();
       prec++;
     }else{//sprite
+      var frms = chr.find('frame');
       var ff=-1;
       if(!curnode||chr.find(curnode).length==0){
         ff=chr.find('placeobject:first').parent().attr('id')||0;
+        if(previewframe>ff) ff=previewframe;
+        if(ff>=frms.length) ff=frms.length-1;
       }
-      var frms = chr.find('frame');
       frms.each(function(i,f){
         if(ff==i||(curnode&&($(f).is(curnode)||$(f).find(curnode).length>0))){
           var objs = validobjs($(f));
@@ -2283,11 +2286,13 @@ function preview(){//var dat1 = new Date().getTime();
   ctx.fillStyle='#ddf';
   ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);
   ctx.restore();
+  var frms = aptdoc.find('movieclip frames frame');
   var ff=-1;
   if(aptdoc.find('movieclip:first').find(curnode).length==0){
     ff=aptdoc.find('placeobject:first').parent().attr('id')||0;
+    if(previewframe>ff) ff=previewframe;
+    if(ff>=frms.length) ff=frms.length-1;
   }
-  var frms = aptdoc.find('movieclip frames frame');
   frms.each(function(i,f){
     var cf;
     if(ff==i||$(f).is(curnode)||(cf=$(f).find(curnode).length)>0){
@@ -2457,6 +2462,10 @@ $('body').on('keydown',function(e){
       }
       if(dp<mindepth) dp=mindepth;
       previewdepth=dp;
+    }else if(e.key=='f'){
+      previewframe++;
+    }else if(e.key=='F'){
+      previewframe--;
     }
  }
 });
