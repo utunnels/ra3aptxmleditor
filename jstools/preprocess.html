@@ -361,6 +361,7 @@ $(function(){
     }
     
     function flagstovalue(f,e){
+      if(f=='') return 0;
       f = f.split('|');
       var v=0;
       for(var i=0;i<f.length;i++){
@@ -424,7 +425,7 @@ $(function(){
           editor.setCursor(cursor);
           editor.focus();
         }
-      },1);
+      },100);
     },
     key: 's',
     modifiers: 'ctrl',
@@ -1314,6 +1315,27 @@ function copyindent(ndest, nsrc){
     ndest[0].before(indent.cloneNode());
   }
 }
+function rgba(c){
+  c=parseInt(c);
+  return [
+    c&0xff,
+    c>>8&0xff,
+    c>>16&0xff,
+    c>>24&0xff
+  ].join(',');
+}
+function getrgba($v){
+  return $v.attr('red')+','+$v.attr('green')+','+$v.attr('blue')+','+$v.attr('alpha');
+}
+function cleanrgba($v){
+  $v.removeAttr('red green blue alpha');
+}
+function getmatrix($v){
+  return eval('['+$v.attr('rotm00')+','+$v.attr('rotm01')+','+$v.attr('rotm10')+','+$v.attr('rotm11')+','+$v.attr('tx')+','+$v.attr('ty')+']').join(',');
+}
+function cleanmatrix($v){
+  $v.removeAttr('rotm00 rotm01 rotm10 rotm11 tx ty');
+}
 function xmladdhint(){
   xmldoc = $.parseXML(input.value);
 
@@ -1510,6 +1532,37 @@ function xmladdhint(){
     $v.append(runode);
     $v.append('\n\t')
   });
+  placeobjects.each(function(i,v){ //clean up a bit
+    var $v = $(v);
+    var flags = $v.attr('flags');
+    if(flags.indexOf('HasCharacter')<0||$v.attr('character')=='-1'){
+      $v.removeAttr('character');
+    }
+    if(flags.indexOf('HasMatrix')<0){
+    }else{
+      $v.attr('matrix', getmatrix($v));
+    }
+    cleanmatrix($v);
+    if(flags.indexOf('HasColorTransform')<0){
+    }else{
+      var unk=$v.attr('unknown');
+      $v.attr('rgbamul', getrgba($v));
+      $v.attr('rgbaadd', rgba(unk));
+    }
+    cleanrgba($v);
+    $v.removeAttr('unknown');
+    if(flags.indexOf('HasRatio')<0){
+      $v.removeAttr('ratio');
+    }
+    if($v.attr('clipdepth')=='-1'){
+      $v.removeAttr('clipdepth');
+    }
+    if(flags.indexOf('Move')>=0){
+      $v.attr('flags', 'Move');
+    }else{
+      $v.removeAttr('flags');
+    }
+  });
   //$(xmldoc).find('image').remove();
   //misc adjustments
   //swap red and blue for edittext
@@ -1517,6 +1570,31 @@ function xmladdhint(){
     var $v=$(v);
     var r=$v.attr('red'),b=$v.attr('blue');
     $v.attr('red',b); $v.attr('blue',r); 
+  });
+  //further clean up
+  $(xmldoc).find('*').each(function(i,v){
+    var $v=$(v);
+    var t;
+    if(t=$v.attr('left')) $v.attr('left',eval(t));
+    if(t=$v.attr('right')) $v.attr('right',eval(t));
+    if(t=$v.attr('top')) $v.attr('top',eval(t));
+    if(t=$v.attr('bottom')) $v.attr('bottom',eval(t));
+    if(t=$v.attr('x')) $v.attr('x',eval(t));
+    if(t=$v.attr('y')) $v.attr('y',eval(t));
+    if(t=$v.attr('height')) $v.attr('height',eval(t));
+    if(t=$v.attr('color')) $v.attr('color',rgba(t));
+    if(t=$v.attr('rotm00')){
+      $v.attr('matrix',getmatrix($v));
+      cleanmatrix($v);
+    }
+    if(t=$v.attr('alpha')){
+      $v.attr('rgba',getrgba($v));
+      cleanrgba($v);
+    }
+    if($v.is('movieclip')){
+      $v.attr('framedelay',$v.attr('unknown'));
+      $v.removeAttr('unknown');
+    }
   });
   editor.setValue((new XMLSerializer()).serializeToString(xmldoc).replace(/^[\t]+$/gm,'').replace(/[\r\n]+/g,'\n'));
   editor.clearHistory();
@@ -2003,7 +2081,7 @@ function xmlcleanhint(retry){
   //resolve flags
   var placeobjects = $(xmldoc).find('placeobject');
   placeobjects.each(function(_,v){
-    $(v).attr('flags', flagstovalue($(v).attr('flags'), PlaceObjectFlags));
+    $(v).attr('flags', flagstovalue($(v).attr('flags')||'', PlaceObjectFlags));
   });
   var buttonrecords = $(xmldoc).find('buttonrecord');
   buttonrecords.each(function(_,v){
@@ -2025,6 +2103,60 @@ function xmlcleanhint(retry){
     $(v).removeAttr('keycode');
   });
   //end of resolve flags
+  //placeobject
+  placeobjects.each(function(i,v){
+    var $v = $(v);
+    var flags = $v.attr('flags')||0;
+    if($v.attr('character')=='-1'||$v.attr('character')==undefined){
+      $v.attr('character','-1');
+      flags&=~PlaceObjectFlags.HasCharacter;
+    }else{
+      flags|=PlaceObjectFlags.HasCharacter;
+    }
+    if($v.attr('matrix')==undefined){
+      $v.attr('matrix','1,0,0,1,0,0');
+      flags&=~PlaceObjectFlags.HasMatrix;
+    }else{
+      flags|=PlaceObjectFlags.HasMatrix;
+    }
+    if($v.attr('rgbamul')==undefined&&$v.attr('rgbaadd')==undefined){
+      flags&=~PlaceObjectFlags.HasColorTransform;
+    }else{
+      flags|=PlaceObjectFlags.HasColorTransform;
+    }
+    if($v.attr('rgbamul')==undefined){
+      $v.attr('rgbamul','255,255,255,255');
+      flags&=~PlaceObjectFlags.HasColorTransform;
+    }
+    if($v.attr('rgbaadd')==undefined){
+      $v.attr('rgbaadd','0,0,0,0');
+      flags&=~PlaceObjectFlags.HasColorTransform;
+    }
+    if($v.attr('ratio')==0||$v.attr('ratio')==undefined){
+      $v.attr('ratio','0');
+      flags&=~PlaceObjectFlags.HasRatio;
+    }else{
+      flags|=PlaceObjectFlags.HasRatio;
+    }
+    if($v.attr('clipdepth')=='-1'||$v.attr('clipdepth')==undefined){
+      $v.attr('clipdepth','-1');
+      flags&=~PlaceObjectFlags.HasClipDepth;
+    }else{
+      flags|=PlaceObjectFlags.HasClipDepth;
+    }
+    if($v.find('poname').length==0){
+      flags&=~PlaceObjectFlags.HasName;
+    }else{
+      flags|=PlaceObjectFlags.HasName;
+    }
+    if($v.find('clipactions').length==0){
+      flags&=~PlaceObjectFlags.HasClipAction;
+    }else{
+      flags|=PlaceObjectFlags.HasClipAction;
+    }
+    $v.attr('flags',flags);
+  });
+  //end of placeobject
   //ru and image
   var newmanifest = "<?xml version='1.0' encoding='utf-8'?>\n" + '<AssetDeclaration xmlns="uri:ea.com:eala:asset" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n<AptAptData id="'+apt+'_apt" File="'+aptapt+'" />\n<AptConstData id="'+apt+'_const" File="'+aptconst+'" />\n<AptDatData id="'+apt+'_dat" File="'+aptdat+'" />\n';
   var newdat =  "; Created by AptXMLEditor.\n";
@@ -2104,13 +2236,48 @@ function xmlcleanhint(retry){
   //end of ru and image
   //misc adjustments
   //swap red and blue for edittext
+  //clean up
+  $(xmldoc).find('*').removeAttr('filtered mylabel targetlabel aln newid').each(function(i,v){
+    var $v=$(v);
+    var t;
+    if(t=$v.attr('matrix')){
+      var a = t.split(',');
+      $v.attr('rotm00',a[0]);
+      $v.attr('rotm01',a[1]);
+      $v.attr('rotm10',a[2]);
+      $v.attr('rotm11',a[3]);
+      $v.attr('tx',a[4]);
+      $v.attr('ty',a[5]);
+      $v.removeAttr('matrix');
+    }
+    if((t=$v.attr('rgbamul'))||(t=$v.attr('rgba'))){
+      var rgbam = t.split(',');
+      $v.attr('red',rgbam[0]);
+      $v.attr('green',rgbam[1]);
+      $v.attr('blue',rgbam[2]);
+      $v.attr('alpha',rgbam[3]);
+      $v.removeAttr('rgbamul rgba');
+    }
+    if(t=$v.attr('rgbaadd')){
+      var rgbaa = t.split(',');
+      $v.attr('unknown',rgbaa[0]|(rgbaa[1]<<8)|(rgbaa[2]<<16)|(rgbaa[3]<<24));
+      $v.removeAttr('rgbaadd');
+    }
+    if(t=$v.attr('color')){
+      var rgba = t.split(',');
+      $v.attr('color',rgba[0]|(rgba[1]<<8)|(rgba[2]<<16)|(rgba[3]<<24));
+    }
+    if($v.is('movieclip')){
+      $v.attr('unknown',$v.attr('framedelay'));
+      $v.removeAttr('framedelay');
+    }
+  });
+  //swap those
   $(xmldoc).find('edittext').each(function(i,v){
     var $v=$(v);
     var r=$v.attr('red'),b=$v.attr('blue');
     $v.attr('red',b); $v.attr('blue',r); 
   });
-  //clean up
-  $(xmldoc).find('*').removeAttr('filtered mylabel targetlabel aln newid');
   $(xmldoc).find('end,dummy').remove();
   input.value = (new XMLSerializer()).serializeToString(xmldoc);
   //no error? write files, do that here, for now
@@ -2119,6 +2286,7 @@ function xmlcleanhint(retry){
   for(var rup in rucache){
     fs.writeFileSync(rup, rucache[rup], 'utf-8');
   }
+  console.log(xmldoc);
   return true;
 }
 
@@ -2134,36 +2302,22 @@ function validobjs(frm){
     oo.each(function(_,o){
       if($(o).is('placeobject')){
         //objs = objs.not('[depth='+$(o).attr('depth')+']');
-        if($(o).attr('character')<0){ //update existing
+        if(($(o).attr('flags')||'').indexOf('Move')>=0){ //update existing
           var old = objs.filter('[depth='+$(o).attr('depth')+']');
-          if($(o).attr('flags').indexOf('Move')>=0){
-            old.attr('_tx', Number($(o).attr('tx')));
-            old.attr('_ty', Number($(o).attr('ty')));
+          if($(o).attr('matrix')!=undefined){
+            old.attr('_matrix', $(o).attr('matrix'));
           }
-          if($(o).attr('flags').indexOf('HasMatrix')>=0){
-            old.attr('_rotm00', $(o).attr('rotm00'));
-            old.attr('_rotm01', $(o).attr('rotm01'));
-            old.attr('_rotm10', $(o).attr('rotm10'));
-            old.attr('_rotm11', $(o).attr('rotm11'));
+          if($(o).attr('rgbamul')!=undefined){
+            old.attr('_rgbamul', $(o).attr('rgbamul'));
           }
-          if($(o).attr('flags').indexOf('HasColorTransform')>=0){
-            old.attr('_red', $(o).attr('red'));
-            old.attr('_blue', $(o).attr('blue'));
-            old.attr('_green', $(o).attr('green'));
-            old.attr('_alpha', $(o).attr('alpha'));
+          if($(o).attr('rgbaadd')!=undefined){
+            old.attr('_rgbaadd', $(o).attr('rgbaadd'));
           }
         }else{
           objs = objs.not('[depth='+$(o).attr('depth')+']').add(o);
-          $(o).attr('_rotm00', $(o).attr('rotm00'));
-          $(o).attr('_rotm01', $(o).attr('rotm01'));
-          $(o).attr('_rotm10', $(o).attr('rotm10'));
-          $(o).attr('_rotm11', $(o).attr('rotm11'));
-          $(o).attr('_tx', $(o).attr('tx'));
-          $(o).attr('_ty', $(o).attr('ty'));
-          $(o).attr('_red', $(o).attr('red'));
-          $(o).attr('_blue', $(o).attr('blue'));
-          $(o).attr('_green', $(o).attr('green'));
-          $(o).attr('_alpha', $(o).attr('alpha'));
+          $(o).attr('_matrix', $(o).attr('matrix'));
+          $(o).attr('_rgbamul', $(o).attr('rgbamul'));
+          $(o).attr('_rgbaadd', $(o).attr('rgbaadd'));
         }
       }else if($(o).is('removeobject')){
         objs = objs.not('[depth='+$(o).attr('depth')+']');
@@ -2176,18 +2330,20 @@ function validobjs(frm){
   return objs;
 }
 
+var viewed=false;
 function objpreview(o,sl,depth){
   var c = ctx, a = aptdoc;
   var cd = o.attr('clipdepth');
-  if(cd!='-1') return; //ignore clipping for now
+  if(cd>0) return; //ignore clipping for now
   c.save();
-  c.transform(o.attr('_rotm00'),o.attr('_rotm01'),o.attr('_rotm10'),o.attr('_rotm11'),o.attr('_tx'),o.attr('_ty'));
+  eval('c.transform('+(o.attr('_matrix')||'1,0,0,1,0,0')+')');
   var ch = o.attr('character');
   depth=depth||'';
   depth+=o.attr('depth').padStart(4,'0');
   if(ch>0){
     chr = a.find('aptdata').children().filter('[id='+ch+']');
     var iscur = sl||(curnode&&(o.is(curnode)||chr.is(curnode)||curnode.find(o).length>0));
+    if(iscur) viewed=true;
     if(chr.is('[right]')){
       var tr = chr.find('triangle');
       var vert = chr.find('vertex');
@@ -2279,6 +2435,7 @@ function objpreview(o,sl,depth){
 
 function preview(){//var dat1 = new Date().getTime();
   prec = 0;
+  viewed=false;
   previewstack=[];
   ctx.save();
   ctx.translate(prex,prey);
@@ -2303,7 +2460,7 @@ function preview(){//var dat1 = new Date().getTime();
       return false;
     }
   });
-  if(prec==0&&curnode&&aptdoc.find('movieclip:first').find(curnode).length==0){
+  if(!viewed&&curnode&&aptdoc.find('movieclip:first').find(curnode).length==0){
     var f;
     if(curnode.is('placeobject')){
       f = curnode.parent();
