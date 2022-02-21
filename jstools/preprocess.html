@@ -2284,7 +2284,6 @@ function xmlcleanhint(retry){
   for(var rup in rucache){
     fs.writeFileSync(rup, rucache[rup], 'utf-8');
   }
-  console.log(xmldoc);
   return true;
 }
 
