@@ -2126,11 +2126,9 @@ function xmlcleanhint(retry){
     }
     if($v.attr('rgbamul')==undefined){
       $v.attr('rgbamul','255,255,255,255');
-      flags&=~PlaceObjectFlags.HasColorTransform;
     }
     if($v.attr('rgbaadd')==undefined){
       $v.attr('rgbaadd','0,0,0,0');
-      flags&=~PlaceObjectFlags.HasColorTransform;
     }
     if($v.attr('ratio')==0||$v.attr('ratio')==undefined){
       $v.attr('ratio','0');
