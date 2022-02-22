@@ -570,7 +570,221 @@ $(function(){
   nw.Window.get().menu = menu;
   </script>
  <script>
-  var tags = {};
+  var dummy = {
+    attrs: {
+      color: ["red", "green", "blue", "purple", "white", "black", "yellow"],
+      size: ["large", "medium", "small"],
+      description: null
+    },
+    children: []
+  };
+  var tags = {
+    "!top": ["aptdata"],
+    "!attrs": {
+    },
+    aptdata: {
+      children: ["movieclip", "sprite","image","shape","empty","edittext","button","font"]
+    },
+    movieclip: {
+      attrs: {
+        screensizex: null,
+        screensizey: null,
+        framedelay: ["33"]
+      },
+      children: ["imports", "exports","frames"]
+    },
+    imports:  {
+      children: ["import"]
+    },
+    exports:  {
+      children: ["export"]
+    },
+    "import":  {
+      attrs: {
+        name:null,
+        movie:null,
+        character:null
+      },
+      children: []
+    },
+    "export":  {
+      attrs: {
+        name:null,
+        character:null
+      },
+      children: []
+    },
+    sprite:  {
+      attrs: {
+        id:null
+      },
+      children: ["frames"]
+    },
+    "frames": {
+      children: ["frame"]
+    },
+    frame: {
+      attrs: {
+        id:null
+      },
+      children: ["placeobject","removeobject","action","initaction","background","framelabel"]
+    },
+    placeobject: {
+      attrs: {
+        id:null,
+        flags:["Move","HasCharacter","HasMatrix","HasColorTransform","HasRatio","HasName","HasClipDepth","HasClipAction"],
+        depth:null,
+        character:null,
+        matrix:["1,0,0,1,0,0"],
+        rgbamul:["255,255,255,255"],
+        rgbaadd:["0,0,0,0"],
+        ratio:["0"],
+        clipdepth:["-1"]
+      },
+      children: ["poname","clipactions"]
+    },
+    poname: {
+      attrs: {
+        name:null
+      },
+      children: []
+    },
+    clipactions: {
+      children: ["clipaction"]
+    },
+    clipaction: {
+      attrs: {
+        flags:["Construct","KeyUp","KeyDown","MouseUp","MouseDown","MouseMove","Unload","EnterFrame","Load","DragOver","RollOut","RollOver","ReleaseOutside","Release","Press","DragOut","Data","KeyPress","Initialize"],
+        flags2:["0"],
+        keycode:["0"]
+      },
+      children: []
+    },
+    removeobject: {
+      attrs: {
+        depth:null
+      },
+      children: []
+    },
+    action: {
+      children: []
+    },
+    initaction: {
+      attrs: {
+        sprite:null
+      },
+      children: []
+    },
+    background: {
+      attrs: {
+        color:["102,102,102,255"],
+        "/>":null
+      },
+      children: []
+    },
+    framelabel: {
+      attrs: {
+        label:[""],
+        frame:null
+      },
+      children: []
+    },
+    button: {
+      attrs: {
+        id:null,
+        top:null,
+        left:null,
+        bottom:null,
+        right:null
+      },
+      children: ["vertexes","triangles","buttonrecords"]
+    },
+    vertexes:  {
+      children: ["vertex"]
+    },
+    triangles:  {
+      children: ["triangle"]
+    },
+    buttonrecords:  {
+      children: ["buttonrecord"]
+    },
+    buttonrecord:  {
+      attrs: {
+        flags:["None","StateUp","StateOver","StateDown","StateHit"],
+        character:null,
+        depth:null,
+        matrix:["1,0,0,1,0,0"]
+      },
+      children: []
+    },
+    vertex:  {
+      attrs: {
+        x:null,
+        y:null
+      },
+      children: []
+    },
+    triangle:  {
+      attrs: {
+        v1:null,
+        v2:null,
+        v3:null
+      },
+      children: []
+    },
+    image: {
+      attrs: {
+        id:null,
+        image:[""]
+      },
+      children: []
+    },
+    empty: {
+      attrs: {
+        id:null
+      },
+      children: []
+    },
+    shape: {
+      attrs: {
+        id:null,
+        top:null,
+        left:null,
+        bottom:null,
+        right:null,
+        geometry:[".ru"]
+      },
+      children: ["ru"]
+    },
+    edittext: {
+      attrs: {
+        id:null,
+        top:null,
+        left:null,
+        bottom:null,
+        right:null,
+        font:null,
+        alignment:["0","1","2"],
+        readonly:["1","0"],
+        multiline:["0","1"],
+        wordwrap:["0","1"],
+        rgba:["255,255,255,255"]
+      },
+      children: ["ettext","etvar"]
+    },
+    ettext: {
+      attrs: {
+        text:[""]
+      },
+      children: []
+    },
+    etvar: {
+      attrs: {
+        variable:[""]
+      },
+      children: []
+    }
+  };
 
   function completeAfter(cm, pred) {
     var cur = cm.getCursor();
@@ -591,10 +805,17 @@ $(function(){
   function completeIfInTag(cm) {
     return completeAfter(cm, function() {
       var tok = cm.getTokenAt(cm.getCursor());
-      if (tok.type == "string" && (!/['"]/.test(tok.string.charAt(tok.string.length - 1)) || tok.string.length == 1)) return false;
+      if (tok.type == "string" && (!/['"]/.test(tok.string.charAt(tok.string.length - 1)) || tok.string.length == 1)){
+        return false;
+      }
       var inner = CodeMirror.innerMode(cm.getMode(), tok.state).state;
       return inner.tagName;
     });
+  }
+
+  function test11(cm, pred){
+    console.log(pred);
+    return CodeMirror.Pass;
   }
 
   var editor = CodeMirror.fromTextArea($('#text2')[0], {
@@ -608,6 +829,7 @@ $(function(){
       "'/'": completeIfAfterLt,
       "' '": completeIfInTag,
       "'='": completeIfInTag,
+      "'|'": test11,
       "Ctrl-P": "autocomplete",
       "Ctrl-F": "findPersistent",
       "Ctrl-.": "foldAll",
