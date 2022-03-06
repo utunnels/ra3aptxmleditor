@@ -215,6 +215,8 @@ CodeMirror.defineMode('aptscript', function() {
         if (next === close) {
           state.tokens.shift();
           break;
+        }else if(next==='\\'){
+          next = stream.next();
         }
       }
       return style;
