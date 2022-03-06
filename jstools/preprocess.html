@@ -1438,6 +1438,7 @@ function encodeXML(s){
     var c = s[i];
     if(c=='\r') a[i]='\\r';
     else if(c=='\n') a[i]='\\n';
+    else if(c=='"') a[i]='\\"';
     else a[i]=c;
   }
   return a.join('');
