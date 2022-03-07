@@ -189,8 +189,8 @@ const i18nstrings = {
     'en':'Choose .apt file!'
   },
   'alert:constant255':{
-    'zh':'\n单字节常数索引超过255，建议手动优化代码，\n例如使用EAGetStringMember、EAPushWordConstant、\nEAPushString、EAPushConstant+ActionCallFunction等\n',
-    'en':'\nByte value exceed 255 and the file can not be saved, try optimizing your code,\n For example, use EAGetStringMember, EAPushWordConstant, \nEAPushString, EAPushConstant+ActionCallFunction more often.\n'
+    'zh':'\n单字节常数索引超过255，建议手动优化代码，\n例如使用getstrmember、pushwconst、\npushstr等\n',
+    'en':'\nByte value exceed 255 and the file can not be saved, try optimizing your code,\n For example, use getstrmember, pushwconst, \npushstr more often.\n'
   },
   'alert:dupid':{
     'zh':'存在相同id: \n',
@@ -1015,7 +1015,7 @@ $(function(){
   EA_PUSHLONG = 0xB7,
   EA_BRANCHIFFALSE = 0xB8,
   EA_PUSHREGISTER = 0xB9;
-var ActionNames =   [
+var ActionNames2 =   [
   "ActionEnd", //0x00
   "", //0x01
   "", //0x02
@@ -1202,6 +1202,194 @@ var ActionNames =   [
   "EAPushLong", //0xb7
   "EABranchIfFalse", //0xb8
   "EAPushRegister" //0xb9
+];
+var ActionNames =   [
+  "endaction", //0x00
+  "", //0x01
+  "", //0x02
+  "", //0x03
+  "nextframe", //0x04
+  "prevframe", //0x05
+  "play", //0x06
+  "stop", //0x07
+  "togglequality", //0x08
+  "stopsounds", //0x09
+  "ActionAdd", //0x0a
+  "sub", //0x0b
+  "mul", //0x0c
+  "div", //0x0d
+  "equals", //0x0e
+  "lessthan", //0x0f
+  "and", //0x10
+  "or", //0x11
+  "not", //0x12
+  "streq", //0x13
+  "strlen", //0x14
+  "substr", //0x15
+  "", //0x16
+  "pop", //0x17
+  "tointeger", //0x18
+  "", //0x19
+  "", //0x1a
+  "", //0x1b
+  "getvar", //0x1c
+  "setvar", //0x1d
+  "", //0x1e
+  "", //0x1f
+  "settargetexpr", //0x20
+  "concat", //0x21
+  "getproperty", //0x22
+  "setproperty", //0x23
+  "duplicateclip", //0x24
+  "removeclip", //0x25
+  "trace", //0x26
+  "startdrag", //0x27
+  "stopdrag", //0x28
+  "strcmp", //0x29
+  "throw", //0x2a
+  "cast", //0x2b
+  "impl", //0x2c
+  "", //0x2d
+  "", //0x2e
+  "", //0x2f
+  "random", //0x30
+  "mbstrlen", //0x31
+  "ord", //0x32
+  "chr", //0x33
+  "gettimer", //0x34
+  "mbsubstr", //0x35
+  "mbord", //0x36
+  "mbchr", //0x37
+  "", //0x38
+  "", //0x39
+  "delete", //0x3a
+  "delete2", //0x3b
+  "definelocal", //0x3c
+  "callpush", //0x3d
+  "return", //0x3e
+  "mod", //0x3f
+  "new", //0x40
+  "var", //0x41
+  "initarray", //0x42
+  "initobject", //0x43
+  "typeof", //0x44
+  "targetpath", //0x45
+  "enumerate", //0x46
+  "add", //0x47
+  "lt", //0x48
+  "eq", //0x49
+  "tonumber", //0x4a
+  "tostring", //0x4b
+  "dup", //0x4c
+  "swap", //0x4d
+  "getmember", //0x4e
+  "setmember", //0x4f
+  "inc", //0x50
+  "dec", //0x51
+  "callmethodpush", //0x52
+  "newmethod", //0x53
+  "instanceof", //0x54
+  "enum2", //0x55
+  "EAUnknownAction56", //0x56
+  "", //0x57
+  "EAUnknownAction58", //0x58
+  "pushzero", //0x59
+  "pushone", //0x5a
+  "callpop", //0x5b
+  "callset", //0x5c
+  "callmethodpop", //0x5d
+  "callmethodset", //0x5e
+  "", //0x5f
+  "bitand", //0x60
+  "bitor", //0x61
+  "xor", //0x62
+  "lsh", //0x63
+  "rsh", //0x64
+  "unsignedrsh", //0x65
+  "stricteq", //0x66
+  "gt", //0x67
+  "strgt", //0x68
+  "extends", //0x69
+  "", //0x6a
+  "", //0x6b
+  "", //0x6c
+  "", //0x6d
+  "", //0x6e
+  "", //0x6f
+  "pushthis", //0x70
+  "pushglobal", //0x71
+  "zerovar", //0x72
+  "pushtrue", //0x73
+  "pushfalse", //0x74
+  "pushnull", //0x75
+  "pushundefined", //0x76
+  "", //0x77
+  "", //0x78
+  "", //0x79
+  "", //0x7a
+  "", //0x7b
+  "", //0x7c
+  "", //0x7d
+  "", //0x7e
+  "", //0x7f
+  "", //0x80
+  "gotoframe", //0x81
+  "", //0x82
+  "geturl", //0x83
+  "", //0x84
+  "", //0x85
+  "", //0x86
+  "setreg", //0x87
+  "ActionConstantPool", //0x88
+  "", //0x89
+  "waitforframe", //0x8a
+  "settarget", //0x8b
+  "gotolabel", //0x8c
+  "waitforframeexpr", //0x8d
+  "ActionDefineFunction2", //0x8e
+  "try", //0x8f
+  "", //0x90
+  "", //0x91
+  "", //0x92
+  "", //0x93
+  "with", //0x94
+  "", //0x95
+  "pushdata", //0x96
+  "", //0x97
+  "", //0x98
+  "jump", //0x99
+  "geturl2", //0x9a
+  "ActionDefineFunction", //0x9b
+  "", //0x9c
+  "jumptrue", //0x9d
+  "callframe", //0x9e
+  "gotoexpr", //0x9f
+  "", //0xa0
+  "pushstr", //0xa1
+  "pushconst", //0xa2
+  "pushwconst", //0xa3
+  "getstrvar", //0xa4
+  "getstrmember", //0xa5
+  "setstrvar", //0xa6
+  "setstrmember", //0xa7
+  "", //0xa8
+  "", //0xa9
+  "", //0xaa
+  "", //0xab
+  "", //0xac
+  "", //0xad
+  "pushvar", //0xae
+  "getnamedmember", //0xaf
+  "callnamedpop", //0xb0
+  "callnamedset", //0xb1
+  "callnamedmethodpop", //0xb2
+  "callnamedmethodset", //0xb3
+  "pushfloat", //0xb4
+  "pushbyte", //0xb5
+  "pushshort", //0xb6
+  "pushlong", //0xb7
+  "jumpfalse", //0xb8
+  "pushreg" //0xb9
 ];
 var ActionAligns = new Array(0xb9+1);
 ActionAligns.fill(0);
@@ -1420,7 +1608,7 @@ var output = document.getElementById('text2');
 var xmldoc;
 var labelID = 0;
 function makelabel(){
-  return 'lxbxl' + labelID++;
+  return 'lxnx' + labelID++;
 }
 function mkstr(s){
   return '"'+encodeXML(s)+'"';
@@ -1835,7 +2023,7 @@ function stringtoaction(s){
   if(s[0]==';'){
     return s;
   }else if(s.indexOf('function')==0&&s.indexOf('flags:')>0){
-    m = s.match(/function[\s]+([\w]*)\([\s]*(flags\:([\w\|]+)[\s]*,[\s]*regs:([\w]+))([^\)]*)\)/i);
+    m = s.match(/^function[\s]+([\w]*)\([\s]*(flags\:([\w\|]+)[\s]*,[\s]*regs:([\w]+))([^\)]*)\)/i);
     if(m){
       var a = el('definefunction2');
       a.attr('name', m[1]);
@@ -1862,7 +2050,7 @@ function stringtoaction(s){
       return a;
     }
   }else if(s.indexOf('function')==0){
-    m = s.match(/function[\s]+([\w]*)\(([^\)]*)\)/i);
+    m = s.match(/^function[\s]+([\w]*)\(([^\)]*)\)/i);
     if(m){
       var a = el('definefunction');
       a.attr('name', m[1]);
@@ -1886,22 +2074,58 @@ function stringtoaction(s){
   }else if(m=s.match(/^([\w]+)[\s]*:$/)){
     return m[1]; //return a label string
   }else{
-    m=s.match(/([\w]+)([\s]*.*)?/i);
+    m=s.match(/^([\w]+)([\s]*.*)?/i);
     if(m){
       var aname = m[1];
-      var aid = ActionNames.findIndex(function(ia){return ia.match(new RegExp('^'+aname+'$','i'));});
       var args = m[2];
+      var isword=false;
       if(args){
         args = m[2].trim();
         if(args) {
           try{
             args = eval('[' + args + ']');
           }catch(ex){
+            isword=true;
             if(args.match(/^[\s]*[\w]+$/)) args = [args];
             else return bad(s);
           }
         }
       }
+      //TODO clean this up
+      if(aname=='push'){
+        if(!args){
+          return bad(s);
+        }
+        if(isword){ //push reg1
+          if(args[0].match(/^reg([0-9]+)/)){
+            aname=ActionNames[EA_PUSHREGISTER];
+            args[0]=args[0].substring(3);
+          }else{
+            return bad(s);
+          }
+        }else{
+          if(typeof(args[0])=='string'){ //push "aaa"
+            aname=ActionNames[EA_PUSHSTRING];
+          }else if(typeof(args[0])=='number'){ //push 1
+            aname=(Number.isInteger(args[0])?ActionNames[EA_PUSHLONG]:ActionNames[EA_PUSHFLOAT]);
+          }else if(args[0]==window){ //push this
+            aname=ActionNames[EA_PUSHTHIS];
+            args=null;
+          }else if(typeof(args[0])=='object'){ //push global
+            aname=ActionNames[EA_PUSHGLOBAL];
+            args=null;
+          }else if(typeof(args[0])=='boolean'){ //push true
+            aname=ActionNames[args[0]?EA_PUSHTRUE:EA_PUSHFALSE];
+            args=null;
+          }else if(args[0]==undefined){ //push undefined
+            aname=ActionNames[EA_PUSHUNDEFINED];
+            args=null;
+          }else{
+            return bad(s);
+          }
+        }
+      }
+      var aid = ActionNames.findIndex(function(ia){return ia.match(new RegExp('^'+aname+'$','i'));});
       if(aid<0){
         console.log(s);
       }else if(aid==ACTION_BRANCHALWAYS||aid==ACTION_BRANCHIFTRUE||aid==EA_BRANCHIFFALSE){
@@ -1993,10 +2217,10 @@ function getline(ac,i,j){
     for(var ii=0;ii<lts.length;ii++){
       if(lts[ii].type=="tag bracket"&&lts[ii].string=="<"&&lts[ii+1]&&lts[ii+1].string==a[0].tagName){
         if(t==j){//found the container tag
-          console.log(j);
+          //console.log(j);
           for(var b=l;b<lc;b++){
             var tks = editor.getLineTokens(b);
-            for(var bb=(b==l?ii+1:0);bb<tks.length;bb++){console.log(tks[bb].type,tks[bb].string);
+            for(var bb=(b==l?ii+1:0);bb<tks.length;bb++){//console.log(tks[bb].type,tks[bb].string);
               if(tks[bb].type=="meta"&&tks[bb].string=="<![CDATA["){//found cdata line
                 return b+i+1;
               }
@@ -2029,7 +2253,7 @@ function xmlcleanhint(retry){
     if(retry) {
       //attemp to use PushWordConstant instead
       // try this if constant index exceed 255
-      text = text.replace(/EAPushConstant\s+\"/ig,'EAPushString "').replace(/EAPushWordConstant\s+\"/ig,'EAPushString "').replace(/EAGetNamedMember/ig,'EAGetStringMember');
+      text = text.replace(/pushconst\s+\"/ig,'pushstr "').replace(/pushwconst\s+\"/ig,'pushstr "').replace(/getnamedmember/ig,'getstrmember');
     }
     text = text.split(/[\r\n]+/);
     v.empty();
