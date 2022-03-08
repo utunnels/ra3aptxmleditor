@@ -168,6 +168,7 @@ CodeMirror.defineMode('aptscript', function() {
   "zerovar",
   ];
   var commonCommands2 = [
+  "push",
   "ActionEnd", 
   "ActionNextFrame", 
   "ActionPrevFrame", 
@@ -303,6 +304,12 @@ CodeMirror.defineMode('aptscript', function() {
   "EABranchIfFalse", 
   "EAPushRegister" 
   ];
+
+  if(localStorage.useoldcodestyle=='true'){
+    var t = commonCommands;
+    commonCommands = commonCommands2;
+    commonCommands2 = t;
+  }
 
   CodeMirror.registerHelper("hintWords", "aptscript", commonAtoms.concat(commonKeywords, commonCommands));
 
