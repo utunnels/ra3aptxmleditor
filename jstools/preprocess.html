@@ -184,6 +184,10 @@ const i18nstrings = {
     'zh':'ru预览',
     'en':'Preview ru files'
   },
+  'menu:oldcodestyle':{
+    'zh':'旧脚本风格',
+    'en':'Use old script style'
+  },
   'alert:chooseaptfile':{
     'zh':'请选择apt文件！',
     'en':'Choose .apt file!'
@@ -208,12 +212,16 @@ const i18nstrings = {
     'zh':'未找到引用: \n',
     'en':'Reference not found in: \n'
   },
+  'alert:restart':{
+    'zh':'重启编辑器之后生效',
+    'en':'Restart the editor for it to take effect.'
+  },
 }
 const i18ndefault = 'en';
 function i18n(key,lng){
   lng = lng||navigator.language;
   var lng0 = lng.split('-')[0];
-  var s = i18nstrings[key];
+  var s = i18nstrings[key]||{};
   return s[lng]||s[lng0]||s[i18ndefault]||('i18n:'+key);
 }
 function i18nw(key,lng){
@@ -565,7 +573,24 @@ $(function(){
       }
     }
   }));
-
+  var submenu3 = new nw.Menu();
+  submenu3.append(new nw.MenuItem({
+    label: i18n('menu:oldcodestyle'),
+    type: 'checkbox',
+    checked: localStorage.useoldcodestyle=='true',
+    click:function(){
+      if(this.checked){
+        localStorage.useoldcodestyle = 'true';
+      }else{
+        localStorage.useoldcodestyle = 'false';
+      }
+      alert(i18n('alert:restart'));
+    }
+  }));
+  menu.append(new nw.MenuItem({
+    label: i18n('menu:oldcodestyle'),
+    submenu:submenu3
+  }));
   // Assign it to `window.menu` to get the menu displayed
   nw.Window.get().menu = menu;
   </script>
@@ -1391,6 +1416,11 @@ var ActionNames =   [
   "jumpfalse", //0xb8
   "pushreg" //0xb9
 ];
+if(localStorage.useoldcodestyle=='true'){
+  var t = ActionNames;
+  ActionNames = ActionNames2;
+  ActionNames2 = t;
+}
 var ActionAligns = new Array(0xb9+1);
 ActionAligns.fill(0);
 ActionAligns[ACTION_BRANCHALWAYS]=1;
