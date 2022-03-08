@@ -1694,21 +1694,23 @@ function actiontostring(a){
   }else if(a[0].tagName=='definefunction'){
     var s1= 'function ' + a.attr('name') + '(';
     var args = a.children();
+    var aa = [];
     args.each(function(_,v){
-      s1+=$(v).attr('name') + ', ';
+      aa.push($(v).attr('name'));
     });
-    s1+=')';
+    s1+=aa.join(', ') + ')';
     return s1;
   }else if(a[0].tagName=='definefunction2'){
     var flags = parseInt(a.attr('flags'));
     var nregs = flags&0xff;
     var realflags = endian((flags>>8)&0xffffff, 3);
-    var s1= 'function ' + a.attr('name') + '(flags:' + valuetoflags(realflags,FunctionPreloadFlags) + ', regs:' + nregs + ', ';
+    var s1= 'function ' + a.attr('name') + '(';
+    var aa = ['flags:' + valuetoflags(realflags,FunctionPreloadFlags), 'regs:' + nregs];
     var args = a.children();
     args.each(function(_,v){
-      s1+='reg'+$(v).attr('reg') +':'+ $(v).attr('name') + ', ';
+      aa.push('reg'+$(v).attr('reg') +':'+ $(v).attr('name'));
     });
-    s1+=')';
+    s1+=aa.join(', ') + ')';
     return s1;
   }else if(a[0].tagName=='end'){
     return 'end';
@@ -1716,6 +1718,14 @@ function actiontostring(a){
     return aname;
   }else if(a[0].tagName=='string'){
     return aname + ' ' + mkstr(a.attr('str'));
+  }else if(a[0].tagName=='pushdata'){
+    var vals=a.children();
+    var rets = []
+    vals.each(function(_,v){
+      v=$(v);
+      rets.push(v.is('[str]')?mkstr(v.attr('str')):v.attr('num'));
+    });
+    return aname + ' ' + rets.join(', ');
   }else if(a.attr('val')!=undefined){
     return aname + ' ' + a.attr('val');
   }else{
@@ -2180,7 +2190,12 @@ function stringtoaction(s){
         a.attr('action', aid);
         for(var i=0;i<args.length;i++){
           var arg = el('data');
-          arg.attr('value', args[i]);
+          arg.attr('val', 0);//calculate this later
+          if(typeof args[i]=='string'){
+            arg.attr('str', args[i]);
+          }else{
+            arg.attr('num', args[i]);
+          }
           a.append(arg);
         }
         return a;
@@ -2335,7 +2350,7 @@ function xmlcleanhint(retry){
     //return ActionSizes[a.getAttribute('action')]>ActionSizes[b.getAttribute('action')]?1:-1;
     return a.tagName>b.tagName?1:-1; //byte and short
   };
-  var actionconstants = $(xmldoc).find(constactionstr);
+  var actionconstants = $(xmldoc).find('data,'+constactionstr);
   actionconstants.sort(sortf);
   var constmap = {str:{},num:{}};
   actionconstants.each(function(i,v){
@@ -2357,6 +2372,17 @@ function xmlcleanhint(retry){
     constmap.num[k] = i;
     consttable[i++] = parseInt(k);
   }
+  var dataconstants = $(xmldoc).find('data');
+  dataconstants.each(function(_,v){
+    var $v=$(v);
+    if($v.is('[str]')){
+      $v.attr('val', constmap.str[$v.attr('str')]);
+    }else if($v.is('[num]')){
+      $v.attr('val', constmap.num[$v.attr('num')]);
+    }else{
+      console.log('possibly bad data constant ', v);
+    }
+  });
   var err = false;
   actioncontainers.each(function(i,v){
     var localstr = {};
