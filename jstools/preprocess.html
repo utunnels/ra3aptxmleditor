@@ -1814,7 +1814,6 @@ function xmladdhint(){
     calcaln(list);
   });
   // add end of function 
-  //var t1 = new Date().getTime();
   var functions = $(xmldoc).find(actionsplitters);
   //console.log(functions.length);
   functions.each(function(i,v){
@@ -1846,7 +1845,6 @@ function xmladdhint(){
       else console.log('cant find end of function', size,sz,headaln,trace, v[0]);
     }
   });
-  //console.log(new Date().getTime()-t1);
   //end of add end of function
   //resolve constants
   var actionconsts = $(xmldoc).find(constactionstr);
@@ -1862,10 +1860,8 @@ function xmladdhint(){
   //end of resolve constants
   //resolve jump target
   var gotos = $(xmldoc).find('goto');
-  //var t1 = new Date().getTime();
   gotos.each(function(i,v){
     v = $(v);
-    //var t2 = new Date().getTime();
     var action = parseInt(v.attr('action'));
     if(action==ACTION_BRANCHALWAYS||action==EA_BRANCHIFFALSE||action==ACTION_BRANCHIFTRUE){
       var pos = parseInt(v.attr('pos'));
@@ -1891,9 +1887,7 @@ function xmladdhint(){
         console.log('warning, not original xml code from apt2xml');
       }
     }
-    //var t3 = new Date().getTime();
   });
-  //console.log(new Date().getTime()-t1);
   //end of resolve jump target
   //action to string
   actioncontainers.each(function(i,v){
@@ -1931,19 +1925,21 @@ function xmladdhint(){
   });
   var clipactions = $(xmldoc).find('clipaction');
   clipactions.each(function(_,v){
-    var flags = parseInt($(v).attr('flags'));
+    var $v=$(v);
+    var flags = parseInt($v.attr('flags'));
     var realflags = endian(flags&0xffffff,3);
     var keycode = (flags>>24)&0xff;
-    $(v).attr('flags', valuetoflags(realflags, ClipEventFlags));
-    $(v).attr('keycode', keycode);
+    $v.attr('flags', valuetoflags(realflags, ClipEventFlags));
+    $v.attr('keycode', keycode);
   });
   var buttonactions = $(xmldoc).find('buttonaction');
   buttonactions.each(function(_,v){
-    var flags = parseInt($(v).attr('flags'));
+    var $v=$(v);
+    var flags = parseInt($v.attr('flags'));
     var realflags = flags&0xff;
     var keycode = (flags>>8)&0xffff;
-    $(v).attr('flags', valuetoflags(realflags, ButtonActionFlags));
-    $(v).attr('keycode', keycode);
+    $v.attr('flags', valuetoflags(realflags, ButtonActionFlags));
+    $v.attr('keycode', keycode);
   });
   //end of resolve flags
   //clean
@@ -2056,59 +2052,53 @@ function el(t){
 function bad(t){
   return $(xmldoc.createElement('bad')).attr('text',escape(t));
 }
-function stringtoaction(s){
+function stringtoaction(s,retry){
   s = s.trim();
   if(!s) return null;
   var m;
   if(s[0]==';'){
     return s;
-  }else if(s.indexOf('function')==0&&s.indexOf('flags:')>0){
-    m = s.match(/^function[\s]+([\w]*)\([\s]*(flags\:([\w\|]+)[\s]*,[\s]*regs:([\w]+))([^\)]*)\)/i);
-    if(m){
-      var a = el('definefunction2');
-      a.attr('name', m[1]);
-      var realflags = endian(flagstovalue(m[3], FunctionPreloadFlags),3);
-      var nregs = parseInt(m[4]);
-      a.attr('flags',nregs|(realflags<<8));
-      a.attr('action', ACTION_DEFINEFUNCTION2);
-      a.attr('size',0);// calculate size later
-      var args = m[5].replace(/\s/g, '');
-      if(args){
-        args = args.split(',');
-        for(var i=0;i<args.length;i++){
-          if(args[i]){
-            var am = args[i].match(/reg([0-9]+):([\w]+)/i);
-            if(am){
-              var arg = el('argument');
-              arg.attr('reg', am[1]);
-              arg.attr('name', am[2]);
-              a.append(arg);
-            }
-          }
-        }
-      }
-      return a;
-    }
-  }else if(s.indexOf('function')==0){
-    m = s.match(/^function[\s]+([\w]*)\(([^\)]*)\)/i);
-    if(m){
-      var a = el('definefunction');
-      a.attr('name', m[1]);
-      a.attr('action', ACTION_DEFINEFUNCTION);
-      a.attr('size',0);// calculate size later
-      var args = m[2].replace(/\s/g, '');
-      if(args){
-        args = args.split(',');
-        for(var i=0;i<args.length;i++){
-          if(args[i]){
+  }else if(m = s.match(/^function[\s]+([\w]*)\([\s]*(flags\:([\w\|]+)[\s]*,[\s]*regs:([\w]+))([^\)]*)\)/i)){
+    var a = el('definefunction2');
+    a.attr('name', m[1]);
+    var realflags = endian(flagstovalue(m[3], FunctionPreloadFlags),3);
+    var nregs = parseInt(m[4]);
+    a.attr('flags',nregs|(realflags<<8));
+    a.attr('action', ACTION_DEFINEFUNCTION2);
+    a.attr('size',0);// calculate size later
+    var args = m[5].replace(/\s/g, '');
+    if(args){
+      args = args.split(',');
+      for(var i=0;i<args.length;i++){
+        if(args[i]){
+          var am = args[i].match(/reg([0-9]+):([\w]+)/i);
+          if(am){
             var arg = el('argument');
-            arg.attr('name', args[i]);
+            arg.attr('reg', am[1]);
+            arg.attr('name', am[2]);
             a.append(arg);
           }
         }
       }
-      return a;
     }
+    return a;
+  }else if(m = s.match(/^function[\s]+([\w]*)\(([^\)]*)\)/i)){
+    var a = el('definefunction');
+    a.attr('name', m[1]);
+    a.attr('action', ACTION_DEFINEFUNCTION);
+    a.attr('size',0);// calculate size later
+    var args = m[2].replace(/\s/g, '');
+    if(args){
+      args = args.split(',');
+      for(var i=0;i<args.length;i++){
+        if(args[i]){
+          var arg = el('argument');
+          arg.attr('name', args[i]);
+          a.append(arg);
+        }
+      }
+    }
+    return a;
   }else if(s=='end'){
     return el('end');
   }else if(m=s.match(/^([\w]+)[\s]*:$/)){
@@ -2165,7 +2155,16 @@ function stringtoaction(s){
           }
         }
       }
-      var aid = ActionNames.findIndex(function(ia){return ia.match(new RegExp('^'+aname+'$','i'));});
+      var aid = ActionNames.indexOf(aname);//.findIndex(function(ia){return ia.match(new RegExp('^'+aname+'$','i'));});
+      if(retry) {
+        //attemp to use string in place of constant
+        // try this if constant index exceed 255
+        if(aid==EA_PUSHCONSTANT||aid==EA_PUSHWORDCONSTANT){
+          aid = EA_PUSHSTRING;
+        }else if(aid==EA_GETNAMEDMEMBER){
+          aid = EA_GETSTRINGMEMBER;
+        }
+      }
       if(aid<0){
         console.log(s);
       }else if(aid==ACTION_BRANCHALWAYS||aid==ACTION_BRANCHIFTRUE||aid==EA_BRANCHIFFALSE){
@@ -2287,25 +2286,21 @@ function getline(ac,i,j){
 }
 
 function xmlcleanhint(retry){
+  if(retry) cosnole.log('retry');
   xmldoc = $.parseXML(editor.getValue());
   var actioncontainers = $(xmldoc).find('initaction, buttonaction, action, clipaction');
-  //var t1 = new Date().getTime();
+  //var _t = new Date().getTime();
   //translate string to actions
   var lastlabel = '', isbad=false;
   actioncontainers.each(function(j,v){
     v=$(v);
     var text = v.text();
-    if(retry) {
-      //attemp to use PushWordConstant instead
-      // try this if constant index exceed 255
-      text = text.replace(/pushconst\s+\"/ig,'pushstr "').replace(/pushwconst\s+\"/ig,'pushstr "').replace(/getnamedmember/ig,'getstrmember');
-    }
     text = text.split(/[\r\n]+/);
     v.empty();
     var aa = [];
     var fstk = []; //function stack to check end of function
     for(var i=0;i<text.length;i++){
-      var action=stringtoaction(text[i]);
+      var action=stringtoaction(text[i],true);
       if(typeof action=='string'){
         if(action[0]!=';') lastlabel = action;
       }else if(action){
@@ -2342,8 +2337,6 @@ function xmlcleanhint(retry){
     return false;
   }
   //end of string to actions
-  //var t2 = new Date().getTime()-t1;
-
   //repopulate constants
   var dbg=0;
   var sortf = function(a,b){
@@ -2787,6 +2780,7 @@ function xmlcleanhint(retry){
   for(var rup in rucache){
     fs.writeFileSync(rup, rucache[rup], 'utf-8');
   }
+  //console.log(new Date().getTime()-_t);
   return true;
 }
 
@@ -2933,7 +2927,7 @@ function objpreview(o,sl,depth){
   c.restore();
 }
 
-function preview(){//var dat1 = new Date().getTime();
+function preview(){
   prec = 0;
   viewed=false;
   previewstack=[];
@@ -2976,7 +2970,7 @@ function preview(){//var dat1 = new Date().getTime();
       });
     }
   }
-  ctx.restore();//console.log(new Date().getTime()-dat1);
+  ctx.restore();
   ctx.save();
   previewstack.sort(function(a,b){
     var da=a.depth||[];
