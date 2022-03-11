@@ -323,7 +323,7 @@ $(function(){
         Unknown : 240
     };
 
-    //this, arguments, super, root, parent, global, extern
+    //this, arguments, super, _root, _parent, _global, _extern
     // byte as numregs + 24bit BE as flags
     FunctionPreloadFlags =
     {
@@ -358,7 +358,7 @@ $(function(){
         var ek=e[k];
         if(v&ek){
           keys.push(k);
-          v0^=ek;
+          v0&=~ek;
         }
       }
       if(v0) {
@@ -1229,6 +1229,194 @@ var ActionNames2 =   [
   "EAPushRegister" //0xb9
 ];
 var ActionNames =   [
+  "actionEnd", //0x00
+  "", //0x01
+  "", //0x02
+  "", //0x03
+  "ActionNextFrame", //0x04
+  "ActionPrevFrame", //0x05
+  "play", //0x06
+  "stop", //0x07
+  "ActionToggleQuality", //0x08
+  "ActionStopSounds", //0x09
+  "ActionAdd", //0x0a
+  "subtract", //0x0b
+  "multiply", //0x0c
+  "divide", //0x0d
+  "ActionEqual", //0x0e
+  "ActionLessThan", //0x0f
+  "and", //0x10
+  "or", //0x11
+  "not", //0x12
+  "stringEq", //0x13
+  "ActionStringLength", //0x14
+  "ActionSubString", //0x15
+  "", //0x16
+  "pop", //0x17
+  "ActionInt", //0x18
+  "", //0x19
+  "", //0x1a
+  "", //0x1b
+  "getVariable", //0x1c
+  "setVariable", //0x1d
+  "", //0x1e
+  "", //0x1f
+  "ActionSetTargetExpression", //0x20
+  "concat", //0x21
+  "getProperty", //0x22
+  "setProperty", //0x23
+  "ActionDuplicateClip", //0x24
+  "removeClip", //0x25
+  "trace", //0x26
+  "ActionStartDrag", //0x27
+  "ActionStopDrag", //0x28
+  "ActionStringCompare", //0x29
+  "throw", //0x2a
+  "cast", //0x2b
+  "implements", //0x2c
+  "", //0x2d
+  "", //0x2e
+  "", //0x2f
+  "ActionRandom", //0x30
+  "ActionMBLength", //0x31
+  "ActionOrd", //0x32
+  "ActionChr", //0x33
+  "getTimer", //0x34
+  "ActionMBSubString", //0x35
+  "ActionMBOrd", //0x36
+  "ActionMBChr", //0x37
+  "", //0x38
+  "", //0x39
+  "delete", //0x3a
+  "delete2", //0x3b
+  "varEquals", //0x3c
+  "callFunction", //0x3d
+  "return", //0x3e
+  "modulo", //0x3f
+  "new", //0x40
+  "var", //0x41
+  "initArray", //0x42
+  "initObject", //0x43
+  "typeof", //0x44
+  "ActionTargetPath", //0x45
+  "ActionEnumerate", //0x46
+  "add", //0x47
+  "lessThan", //0x48
+  "equals", //0x49
+  "toNumber", //0x4a
+  "toString", //0x4b
+  "dup", //0x4c
+  "ActionSwap", //0x4d
+  "getMember", //0x4e
+  "setMember", //0x4f
+  "increment", //0x50
+  "decrement", //0x51
+  "callMethod", //0x52
+  "newMethod", //0x53
+  "instanceOf", //0x54
+  "enumerateValue", //0x55
+  "EAUnknownAction56", //0x56
+  "", //0x57
+  "EAUnknownAction58", //0x58
+  "pushzero", //0x59
+  "pushone", //0x5a
+  "callfp", //0x5b
+  "callfsv", //0x5c
+  "callmp", //0x5d
+  "callmsv", //0x5e
+  "", //0x5f
+  "bitwiseAnd", //0x60
+  "bitwiseOr", //0x61
+  "bitwiseXor", //0x62
+  "ActionShiftLeft", //0x63
+  "ActionShiftRight", //0x64
+  "ActionShiftRight2", //0x65
+  "strictEquals", //0x66
+  "greaterThan", //0x67
+  "ActionStringGreater", //0x68
+  "extends", //0x69
+  "", //0x6a
+  "", //0x6b
+  "", //0x6c
+  "", //0x6d
+  "", //0x6e
+  "", //0x6f
+  "pushthisgv", //0x70
+  "pushglobalgv", //0x71
+  "pushzerosv", //0x72
+  "pushtrue", //0x73
+  "pushfalse", //0x74
+  "pushnull", //0x75
+  "pushundef", //0x76
+  "", //0x77
+  "", //0x78
+  "", //0x79
+  "", //0x7a
+  "", //0x7b
+  "", //0x7c
+  "", //0x7d
+  "", //0x7e
+  "", //0x7f
+  "", //0x80
+  "gotoFrame", //0x81
+  "", //0x82
+  "getURL", //0x83
+  "", //0x84
+  "", //0x85
+  "", //0x86
+  "setRegister", //0x87
+  "constants", //0x88
+  "", //0x89
+  "ActionWaitForFrame", //0x8a
+  "ActionSetTarget", //0x8b
+  "gotoLabel", //0x8c
+  "ActionWaitForFrameExpression", //0x8d
+  "ActionDefineFunction2", //0x8e
+  "try", //0x8f
+  "", //0x90
+  "", //0x91
+  "", //0x92
+  "", //0x93
+  "with", //0x94
+  "", //0x95
+  "push", //0x96
+  "", //0x97
+  "", //0x98
+  "jmp", //0x99
+  "getURL2", //0x9a
+  "ActionDefineFunction", //0x9b
+  "", //0x9c
+  "jnz", //0x9d
+  "ActionCallFrame", //0x9e
+  "gotoAndPlay", //0x9f
+  "", //0xa0
+  "pushs", //0xa1
+  "pushsdb", //0xa2
+  "pushsdw", //0xa3
+  "pushsgv", //0xa4
+  "pushsgm", //0xa5
+  "pushssv", //0xa6
+  "pushssm", //0xa7
+  "", //0xa8
+  "", //0xa9
+  "", //0xaa
+  "", //0xab
+  "", //0xac
+  "", //0xad
+  "pushsdbgv", //0xae
+  "pushsdbgm", //0xaf
+  "dcallfp", //0xb0
+  "dcallfsv", //0xb1
+  "dcallmp", //0xb2
+  "dcallmsv", //0xb3
+  "pushfloat", //0xb4
+  "pushbyte", //0xb5
+  "pushshort", //0xb6
+  "pushlong", //0xb7
+  "jz", //0xb8
+  "pushregister" //0xb9
+];
+var ActionNames3 =   [
   "endaction", //0x00
   "", //0x01
   "", //0x02
@@ -1705,7 +1893,33 @@ function actiontostring(a){
     var nregs = flags&0xff;
     var realflags = endian((flags>>8)&0xffffff, 3);
     var s1= 'function ' + a.attr('name') + '(';
-    var aa = ['flags:' + valuetoflags(realflags,FunctionPreloadFlags), 'regs:' + nregs];
+    var aa = [];
+    //this, arguments, super, _root, _parent, _global, _extern
+    //['flags:' + valuetoflags(realflags,FunctionPreloadFlags), 'regs:' + nregs];
+    //console.log(valuetoflags(realflags,FunctionPreloadFlags));
+    aa.push('regs:' + nregs);
+    var r=1;
+    if(realflags&FunctionPreloadFlags.PreloadThis){
+      aa.push('reg'+(r++)+':' + 'this');
+    }
+    if(realflags&FunctionPreloadFlags.PreloadArguments){
+      aa.push('reg'+(r++)+':' + 'arguments');
+    }
+    if(realflags&FunctionPreloadFlags.PreloadSuper){
+      aa.push('reg'+(r++)+':' + 'super');
+    }
+    if(realflags&FunctionPreloadFlags.PreloadRoot){
+      aa.push('reg'+(r++)+':' + '_root');
+    }
+    if(realflags&FunctionPreloadFlags.PreloadParent){
+      aa.push('reg'+(r++)+':' + '_parent');
+    }
+    if(realflags&FunctionPreloadFlags.PreloadGlobal){
+      aa.push('reg'+(r++)+':' + '_global');
+    }
+    if(realflags&FunctionPreloadFlags.PreloadExtern){
+      aa.push('reg'+(r++)+':' + '_extern');
+    }
     var args = a.children();
     args.each(function(_,v){
       aa.push('reg'+$(v).attr('reg') +':'+ $(v).attr('name'));
@@ -2052,35 +2266,78 @@ function el(t){
 function bad(t){
   return $(xmldoc.createElement('bad')).attr('text',escape(t));
 }
+var fstack = [];
 function stringtoaction(s,retry){
   s = s.trim();
   if(!s) return null;
   var m;
   if(s[0]==';'){
     return s;
-  }else if(m = s.match(/^function[\s]+([\w]*)\([\s]*(flags\:([\w\|]+)[\s]*,[\s]*regs:([\w]+))([^\)]*)\)/i)){
+  }else if(m = s.match(/^function[\s]+([\w]*)\([\s]*(regs:([\w]+))([^\)]*)\)/i)){
     var a = el('definefunction2');
     a.attr('name', m[1]);
-    var realflags = endian(flagstovalue(m[3], FunctionPreloadFlags),3);
-    var nregs = parseInt(m[4]);
-    a.attr('flags',nregs|(realflags<<8));
     a.attr('action', ACTION_DEFINEFUNCTION2);
     a.attr('size',0);// calculate size later
-    var args = m[5].replace(/\s/g, '');
+    var args = m[4].replace(/\s/g, '');
+    var sysa = ['this', 'arguments', 'super', '_root', '_parent', '_global', '_extern'];
+    var sysab = [...sysa];
+    var beginsys = false;
+    var lastsys = 0;
+    var realflags = FunctionPreloadFlags.SupressThis|FunctionPreloadFlags.SupressArguments|FunctionPreloadFlags.SupressSuper;
     if(args){
       args = args.split(',');
       for(var i=0;i<args.length;i++){
         if(args[i]){
           var am = args[i].match(/reg([0-9]+):([\w]+)/i);
           if(am){
-            var arg = el('argument');
-            arg.attr('reg', am[1]);
-            arg.attr('name', am[2]);
-            a.append(arg);
+            var ar = parseInt(am[1]);
+            var an = am[2];
+            if(sysa.indexOf(an)>=0){ //system arguments
+              if(!beginsys){
+                if(ar!=1){ //system arguments must start from reg1
+                  //TODO add error messages
+                  return bad(s);
+                }
+                beginsys=true;
+              }
+              lastsys++;
+              if(ar!=lastsys){ //reg1, reg2, reg3, etc, must be numbers in a row
+                return bad(s);
+              }
+              while(sysa.shift()!=an); //shift the array, remove those already parsed
+              if(an=='this'){
+                realflags|=FunctionPreloadFlags.PreloadThis;
+                realflags&=~FunctionPreloadFlags.SupressThis;
+              }else if(an=='arguments'){
+                realflags|=FunctionPreloadFlags.PreloadArguments;
+                realflags&=~FunctionPreloadFlags.SupressArguments;
+              }else if(an=='super'){
+                realflags|=FunctionPreloadFlags.PreloadSuper;
+                realflags&=~FunctionPreloadFlags.SupressSuper;
+              }else if(an=='_root'){
+                realflags|=FunctionPreloadFlags.PreloadRoot;
+              }else if(an=='_parent'){
+                realflags|=FunctionPreloadFlags.PreloadParent;
+              }else if(an=='_global'){
+                realflags|=FunctionPreloadFlags.PreloadGlobal;
+              }else if(an=='_extern'){
+                realflags|=FunctionPreloadFlags.PreloadExtern;
+              }
+            }else if(sysab.indexOf(an)>=0){// it is a system argument, but in wrong order, 
+              return bad(s);
+            }else{ //normal arguments
+              var arg = el('argument');
+              arg.attr('reg', ar);
+              arg.attr('name', an);
+              a.append(arg);
+            }
           }
         }
       }
     }
+    realflags=endian(realflags,3);
+    var nregs = parseInt(m[3]);
+    a.attr('flags',nregs|(realflags<<8));
     return a;
   }else if(m = s.match(/^function[\s]+([\w]*)\(([^\)]*)\)/i)){
     var a = el('definefunction');
@@ -2121,6 +2378,7 @@ function stringtoaction(s,retry){
           }
         }
       }
+      /*
       //TODO clean this up
       if(aname=='push'){
         if(!args){
@@ -2154,15 +2412,17 @@ function stringtoaction(s,retry){
             return bad(s);
           }
         }
-      }
+      }*/
       var aid = ActionNames.indexOf(aname);//.findIndex(function(ia){return ia.match(new RegExp('^'+aname+'$','i'));});
       if(retry) {
         //attemp to use string in place of constant
         // try this if constant index exceed 255
-        if(aid==EA_PUSHCONSTANT||aid==EA_PUSHWORDCONSTANT){
+        if((aid==EA_PUSHCONSTANT||aid==EA_PUSHWORDCONSTANT)&&typeof(args[0])=='string'){
           aid = EA_PUSHSTRING;
         }else if(aid==EA_GETNAMEDMEMBER){
           aid = EA_GETSTRINGMEMBER;
+        }else if(aid==EA_PUSHVALUEOFVAR){
+          aid = EA_GETSTRINGVAR;
         }
       }
       if(aid<0){
