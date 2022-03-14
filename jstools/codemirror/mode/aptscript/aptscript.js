@@ -40,7 +40,6 @@ CodeMirror.defineMode('aptscript', function() {
   "ActionDuplicateClip",
   "ActionEnumerate",
   "ActionEqual",
-  "ActionInt",
   "ActionLessThan",
   "ActionMBChr",
   "ActionMBLength",
@@ -49,7 +48,6 @@ CodeMirror.defineMode('aptscript', function() {
   "ActionNextFrame",
   "ActionOrd",
   "ActionPrevFrame",
-  "ActionRandom",
   "ActionSetTarget",
   "ActionSetTargetExpression",
   "ActionStartDrag",
@@ -106,6 +104,7 @@ CodeMirror.defineMode('aptscript', function() {
   "initArray",
   "initObject",
   "instanceOf",
+  "int",
   "jmp",
   "jnz",
   "jz",
@@ -146,6 +145,7 @@ CodeMirror.defineMode('aptscript', function() {
   "pushzerosv",
   "removeClip",
   "return",
+  "random",
   "setMember",
   "setProperty",
   "setRegister",
@@ -464,7 +464,7 @@ CodeMirror.defineMode('aptscript', function() {
       state.tokens.unshift(tokenString(ch, "string"));
       return tokenize(stream, state);
     }
-    if (ch === ':' || ch === ',' || ch=== '|') {
+    if (ch === ':' || ch === ',' || ch=== '|'||ch==='-') {
       return 'operator';
     }
     if (ch === '(' || ch === ')') {
