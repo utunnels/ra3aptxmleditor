@@ -1872,8 +1872,10 @@ function encodeXML(s){
 function actiontostring(a){
   var action = parseInt(a.attr('action'));
   var aname = ActionNames[action];
-  if(action==ACTION_BRANCHALWAYS||action==ACTION_BRANCHIFTRUE||action==EA_BRANCHIFFALSE)
-  {
+  if(action==EA_PUSHBYTE){//TODO: apt2xml bug fix
+    a.attr('val',a.attr('val')<<24>>24);
+  }
+  if(action==ACTION_BRANCHALWAYS||action==ACTION_BRANCHIFTRUE||action==EA_BRANCHIFFALSE){
     return aname + ' ' + a.attr('targetlabel');
   }else if(action==EA_PUSHCONSTANT||action==EA_CALLNAMEDFUNCTIONPOP||action==EA_CALLNAMEDFUNCTION||action==EA_CALLNAMEDMETHODPOP||action==EA_CALLNAMEDMETHOD||action==EA_PUSHVALUEOFVAR||action==EA_GETNAMEDMEMBER||action==EA_PUSHWORDCONSTANT){
     return aname + ' ' + (a.is('[str]')?mkstr(a.attr('str')):a.attr('num'));
