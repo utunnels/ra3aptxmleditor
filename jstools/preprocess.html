@@ -1315,9 +1315,9 @@ var ActionNames =   [
   "newMethod", //0x53
   "instanceOf", //0x54
   "enumerateValue", //0x55
-  "EAUnknownAction56", //0x56
+  "pushthis", //0x56
   "", //0x57
-  "EAUnknownAction58", //0x58
+  "pushglobal", //0x58
   "pushzero", //0x59
   "pushone", //0x5a
   "callfp", //0x5b
@@ -1604,6 +1604,8 @@ var ActionNames3 =   [
   "jumpfalse", //0xb8
   "pushreg" //0xb9
 ];
+var oldactions = ActionNames2;
+var newactions = ActionNames;
 if(localStorage.useoldcodestyle=='true'){
   var t = ActionNames;
   ActionNames = ActionNames2;
