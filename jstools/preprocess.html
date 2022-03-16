@@ -1899,38 +1899,38 @@ function actiontostring(a){
     var nregs = flags&0xff;
     var realflags = endian((flags>>8)&0xffffff, 3);
     var s1= 'function ' + a.attr('name') + '(';
-    var aa = [];
-    //this, arguments, super, _root, _parent, _global, _extern
+    var aa = [],aa2 = [];
+    //system argument order: this, arguments, super, _root, _parent, _global, _extern
     //['flags:' + valuetoflags(realflags,FunctionPreloadFlags), 'regs:' + nregs];
     //console.log(valuetoflags(realflags,FunctionPreloadFlags));
-    aa.push('regs:' + nregs);
+    aa2.push('regs:' + nregs);
     var r=1;
     if(realflags&FunctionPreloadFlags.PreloadThis){
-      aa.push('reg'+(r++)+':' + 'this');
+      aa2.push('reg'+(r++)+':' + 'this');
     }
     if(realflags&FunctionPreloadFlags.PreloadArguments){
-      aa.push('reg'+(r++)+':' + 'arguments');
+      aa2.push('reg'+(r++)+':' + 'arguments');
     }
     if(realflags&FunctionPreloadFlags.PreloadSuper){
-      aa.push('reg'+(r++)+':' + 'super');
+      aa2.push('reg'+(r++)+':' + 'super');
     }
     if(realflags&FunctionPreloadFlags.PreloadRoot){
-      aa.push('reg'+(r++)+':' + '_root');
+      aa2.push('reg'+(r++)+':' + '_root');
     }
     if(realflags&FunctionPreloadFlags.PreloadParent){
-      aa.push('reg'+(r++)+':' + '_parent');
+      aa2.push('reg'+(r++)+':' + '_parent');
     }
     if(realflags&FunctionPreloadFlags.PreloadGlobal){
-      aa.push('reg'+(r++)+':' + '_global');
+      aa2.push('reg'+(r++)+':' + '_global');
     }
     if(realflags&FunctionPreloadFlags.PreloadExtern){
-      aa.push('reg'+(r++)+':' + '_extern');
+      aa2.push('reg'+(r++)+':' + '_extern');
     }
     var args = a.children();
     args.each(function(_,v){
       aa.push('reg'+$(v).attr('reg') +':'+ $(v).attr('name'));
     });
-    s1+=aa.join(', ') + ')';
+    s1+=aa.join(', ') + ')(' +aa2.join(', ') + ')';
     return s1;
   }else if(a[0].tagName=='end'){
     return 'end';
@@ -2279,25 +2279,34 @@ function stringtoaction(s,retry){
   var m;
   if(s[0]==';'){
     return s;
-  }else if(m = s.match(/^function[\s]+([\w]*)\([\s]*(regs:([\w]+))([^\)]*)\)/i)){
+  }else if(m = s.match(/^function[\s]+([\w]*)\(([^\)]*)\)[\s]*\(([^\)]*)\)/i)){//function (reg4:screen)(regs:5, reg1:this, reg2:super, reg3:_global)
     var a = el('definefunction2');
     a.attr('name', m[1]);
     a.attr('action', ACTION_DEFINEFUNCTION2);
     a.attr('size',0);// calculate size later
-    var args = m[4].replace(/\s/g, '');
+    var args = m[2].replace(/\s/g, '');
+    var args2 = m[3].replace(/\s/g, '');
     var sysa = ['this', 'arguments', 'super', '_root', '_parent', '_global', '_extern'];
     var sysab = [...sysa];
     var beginsys = false;
     var lastsys = 0;
     var realflags = FunctionPreloadFlags.SupressThis|FunctionPreloadFlags.SupressArguments|FunctionPreloadFlags.SupressSuper;
-    if(args){
-      args = args.split(',');
-      for(var i=0;i<args.length;i++){
-        if(args[i]){
-          var am = args[i].match(/reg([0-9]+):([\w]+)/i);
+    var nregs = 20; //any value, will modify it later
+    //function2 has a second argument list
+    if(args2){
+      args2 = args2.split(',');
+      for(var i=0;i<args2.length;i++){
+        if(args2[i]){
+          var am = args2[i].match(/^reg([s]|[0-9]+):([\w]+)/i);
           if(am){
-            var ar = parseInt(am[1]);
+            var ar = am[1];
             var an = am[2];
+            if(ar[0]=='s'){
+              nregs = parseInt(an);
+              continue;
+            }else{
+              ar=parseInt(ar);
+            }
             if(sysa.indexOf(an)>=0){ //system arguments
               if(!beginsys){
                 if(ar!=1){ //system arguments must start from reg1
@@ -2332,17 +2341,37 @@ function stringtoaction(s,retry){
             }else if(sysab.indexOf(an)>=0){// it is a system argument, but in wrong order, 
               return bad(s);
             }else{ //normal arguments
+              return bad(s); //TODO: detailed error message
+            }
+          }else{ //wrong argument format
+            return bad(s);
+          }
+        }
+      }
+    }//args2
+    if(args){
+      args = args.split(',');
+      for(var i=0;i<args.length;i++){
+        if(args[i]){
+          var am = args[i].match(/^reg([0-9]+):([\w]+)/i);
+          if(am){
+            var ar = parseInt(am[1]);
+            var an = am[2];
+            if(sysab.indexOf(an)>=0){// it is a system argument, should be in args2
+              return bad(s);
+            }else{ //normal arguments
               var arg = el('argument');
               arg.attr('reg', ar);
               arg.attr('name', an);
               a.append(arg);
             }
+          }else{
+            return bad(s);
           }
         }
       }
-    }
+    }//args
     realflags=endian(realflags,3);
-    var nregs = parseInt(m[3]);
     a.attr('flags',nregs|(realflags<<8));
     return a;
   }else if(m = s.match(/^function[\s]+([\w]*)\(([^\)]*)\)/i)){
