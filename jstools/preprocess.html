@@ -1876,6 +1876,8 @@ function actiontostring(a){
   var aname = ActionNames[action];
   if(action==EA_PUSHBYTE){//TODO: apt2xml bug fix
     a.attr('val',a.attr('val')<<24>>24);
+  }else if(action==EA_PUSHSHORT){
+    a.attr('val',a.attr('val')<<16>>16);
   }
   if(action==ACTION_BRANCHALWAYS||action==ACTION_BRANCHIFTRUE||action==EA_BRANCHIFFALSE){
     return aname + ' ' + a.attr('targetlabel');
