@@ -297,6 +297,18 @@ $(function(){
 
     //byte
     //flags:8 input:16, reserved:8
+    //ButtonActionFlags =
+    //{
+    //    IdleToOverUp : 1,
+    //    OverUpToIdle : 2,
+    //    OverUpToOverDown : 4,
+    //    OverDownToOverUp : 8,
+    //    OverDownToOutDown : 16,
+    //    OutDownToOverDown : 32,
+    //    IdleToOverDown : 64,
+    //    OverDownToIdle : 128
+    //};
+    //things seem a little different in ra3
     ButtonActionFlags =
     {
         IdleToOverUp : 1,
@@ -305,10 +317,9 @@ $(function(){
         OverDownToOverUp : 8,
         OverDownToOutDown : 16,
         OutDownToOverDown : 32,
-        IdleToOverDown : 64,
-        OverDownToIdle : 128
+        IdleToOverDown : 128,
+        OverDownToIdle : 256
     };
-
 
     //ushort
     ButtonInput =
@@ -2158,10 +2169,11 @@ function xmladdhint(){
   buttonactions.each(function(_,v){
     var $v=$(v);
     var flags = parseInt($v.attr('flags'));
-    var realflags = flags&0xff;
-    var keycode = (flags>>8)&0xffff;
-    $v.attr('flags', valuetoflags(realflags, ButtonActionFlags));
-    $v.attr('keycode', keycode);
+    //var realflags = flags&0xff;
+    //var keycode = (flags>>8)&0xffff;
+    //$v.attr('flags', valuetoflags(realflags, ButtonActionFlags));
+    //$v.attr('keycode', keycode);
+    $v.attr('flags', valuetoflags(flags, ButtonActionFlags));
   });
   //end of resolve flags
   //clean
@@ -2889,11 +2901,12 @@ function xmlcleanhint(retry){
   });
   var buttonactions = $(xmldoc).find('buttonaction');
   buttonactions.each(function(_,v){
-    var realflags = flagstovalue($(v).attr('flags'), ButtonActionFlags);
-    var keycode = parseInt($(v).attr('keycode'));
-    var flags = realflags | (keycode<<8);
-    $(v).attr('flags', flags);
-    $(v).removeAttr('keycode');
+    //var realflags = flagstovalue($(v).attr('flags'), ButtonActionFlags);
+    //var keycode = parseInt($(v).attr('keycode'));
+    //var flags = realflags | (keycode<<8);
+    //$(v).attr('flags', flags);
+    //$(v).removeAttr('keycode');
+    $(v).attr('flags', flagstovalue($(v).attr('flags'), ButtonActionFlags));
   });
   //end of resolve flags
   //placeobject
